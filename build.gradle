@@ -1,0 +1,53 @@
+plugins {
+    id "java"
+    id "application"
+    id 'checkstyle'
+}
+
+group = 'com.epam.aidial'
+version = "0.1.0"
+
+dependencies {
+    compileOnly "org.keycloak:keycloak-core:${keycloakVersion}"
+    compileOnly "org.keycloak:keycloak-server-spi:${keycloakVersion}"
+    compileOnly "org.keycloak:keycloak-server-spi-private:${keycloakVersion}"
+    compileOnly "org.keycloak:keycloak-services:${keycloakVersion}"
+
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    compileOnly "org.slf4j:slf4j-api:${slf4jVersion}"
+
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+
+    testImplementation "org.keycloak:keycloak-core:${keycloakVersion}"
+    testImplementation "org.keycloak:keycloak-server-spi:${keycloakVersion}"
+    testImplementation "org.keycloak:keycloak-server-spi-private:${keycloakVersion}"
+    testImplementation "org.keycloak:keycloak-services:${keycloakVersion}"
+}
+
+checkstyle {
+    toolVersion = checkstyleVersion
+    configDirectory = file("$rootProject.projectDir/checkstyle")
+}
+
+repositories {
+    mavenCentral()
+}
+
+jar {
+    archiveBaseName = 'aidial-keycloak-mappers'
+    archiveVersion = project.version
+
+    manifest {
+        attributes(
+            'Implementation-Title': 'AI DIAL Keycloak Custom Mappers',
+            'Implementation-Version': project.version,
+            'Built-By': System.getProperty('user.name'),
+            'Built-JDK': System.getProperty('java.version')
+        )
+    }
+}
