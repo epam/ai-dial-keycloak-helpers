@@ -1,11 +1,10 @@
 package com.epam.aidial.keycloak.helpers.provider;
 
+import com.epam.aidial.keycloak.helpers.model.IdpType;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.EnumMap;
 import java.util.Map;
-
-import com.epam.aidial.keycloak.helpers.model.IdpType;
-
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Factory for creating IdP-specific user attributes providers

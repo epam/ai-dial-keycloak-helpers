@@ -1,5 +1,7 @@
 package com.epam.aidial.keycloak.helpers.provider;
 
+import com.epam.aidial.keycloak.helpers.model.IdpType;
+import com.epam.aidial.keycloak.helpers.model.UserAttributes;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -8,9 +10,6 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
-
-import com.epam.aidial.keycloak.helpers.model.IdpType;
-import com.epam.aidial.keycloak.helpers.model.UserAttributes;
 
 /**
  * Service for interacting with Microsoft Graph API.
@@ -38,12 +37,12 @@ public class MsGraphUserAttributesProvider implements UserAttributesProvider {
             JsonNode profile = fetchUserProfile(accessToken);
 
             UserAttributes userAttributes = UserAttributes.builder()
-                .name(safeGetText(profile, "displayName"))
-                .jobTitle(safeGetText(profile, "jobTitle"))
-                .build();
+                    .name(safeGetText(profile, "displayName"))
+                    .jobTitle(safeGetText(profile, "jobTitle"))
+                    .build();
 
             log.debug("Successfully fetched user profile: name={}, jobTitle={}",
-                userAttributes.getName(), userAttributes.getJobTitle());
+                    userAttributes.getName(), userAttributes.getJobTitle());
 
             return userAttributes;
 

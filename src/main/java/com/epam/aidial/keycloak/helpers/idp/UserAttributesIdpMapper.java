@@ -1,14 +1,11 @@
 package com.epam.aidial.keycloak.helpers.idp;
 
-import java.util.List;
-
 import com.epam.aidial.keycloak.helpers.config.MapperConfiguration;
 import com.epam.aidial.keycloak.helpers.model.IdpType;
 import com.epam.aidial.keycloak.helpers.model.UserAttributes;
 import com.epam.aidial.keycloak.helpers.provider.UserAttributesProvider;
 import com.epam.aidial.keycloak.helpers.provider.UserAttributesProviderFactory;
 import com.epam.aidial.keycloak.helpers.util.TokenExtractor;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.broker.provider.AbstractIdentityProviderMapper;
@@ -18,6 +15,8 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.provider.ProviderConfigProperty;
+
+import java.util.List;
 
 /**
  * Base identity provider mapper that enriches the Keycloak user with attributes fetched from an external IdP API.

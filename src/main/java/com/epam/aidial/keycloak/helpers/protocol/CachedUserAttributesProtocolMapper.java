@@ -1,10 +1,6 @@
 package com.epam.aidial.keycloak.helpers.protocol;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.epam.aidial.keycloak.helpers.config.MapperConfiguration;
-
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
@@ -18,6 +14,9 @@ import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.IDToken;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Protocol mapper that maps previously cached user attributes (stored on the {@link UserModel})
  * into OIDC token claims.
@@ -27,7 +26,7 @@ import org.keycloak.representations.IDToken;
  */
 @Slf4j
 public class CachedUserAttributesProtocolMapper extends AbstractOIDCProtocolMapper
-    implements OIDCAccessTokenMapper, UserInfoTokenMapper {
+        implements OIDCAccessTokenMapper, UserInfoTokenMapper {
 
     public static final String PROVIDER_ID = "cached-user-attributes-protocol-mapper";
 

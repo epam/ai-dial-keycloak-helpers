@@ -1,19 +1,19 @@
 package com.epam.aidial.keycloak.helpers.config;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.junit.Test;
+import org.keycloak.models.IdentityProviderMapperModel;
+import org.keycloak.models.ProtocolMapperModel;
+import org.keycloak.provider.ProviderConfigProperty;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Test;
-import org.keycloak.models.IdentityProviderMapperModel;
-import org.keycloak.models.ProtocolMapperModel;
-import org.keycloak.provider.ProviderConfigProperty;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class MapperConfigurationTest {
 

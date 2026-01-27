@@ -1,12 +1,12 @@
 package com.epam.aidial.keycloak.helpers.config;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import lombok.Value;
 import org.keycloak.models.IdentityProviderMapperModel;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.provider.ProviderConfigProperty;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Configuration for user-attributes mappers.

@@ -1,11 +1,11 @@
 package com.epam.aidial.keycloak.helpers.provider;
 
+import com.epam.aidial.keycloak.helpers.model.IdpType;
+import org.junit.Test;
+
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-
-import com.epam.aidial.keycloak.helpers.model.IdpType;
-import org.junit.Test;
 
 public class UserAttributesProviderFactoryTest {
 
