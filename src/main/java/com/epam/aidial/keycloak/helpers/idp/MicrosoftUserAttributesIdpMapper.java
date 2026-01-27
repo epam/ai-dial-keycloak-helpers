@@ -1,6 +1,6 @@
-package com.epam.aidial.protocol.mapper.idp;
+package com.epam.aidial.keycloak.helpers.idp;
 
-import com.epam.aidial.protocol.mapper.model.IdpType;
+import com.epam.aidial.keycloak.helpers.model.IdpType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,4 +1,4 @@
-package com.epam.aidial.protocol.mapper.provider;
+package com.epam.aidial.keycloak.helpers.provider;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,8 +9,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
 
-import com.epam.aidial.protocol.mapper.model.IdpType;
-import com.epam.aidial.protocol.mapper.model.UserAttributes;
+import com.epam.aidial.keycloak.helpers.model.IdpType;
+import com.epam.aidial.keycloak.helpers.model.UserAttributes;
 
 /**
  * Service for interacting with Microsoft Graph API.

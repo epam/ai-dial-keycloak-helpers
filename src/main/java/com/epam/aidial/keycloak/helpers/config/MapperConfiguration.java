@@ -1,4 +1,4 @@
-package com.epam.aidial.protocol.mapper.config;
+package com.epam.aidial.keycloak.helpers.config;
 
 import java.util.ArrayList;
 import java.util.List;

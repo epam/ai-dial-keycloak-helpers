@@ -1,1 +1,1 @@
-com.epam.aidial.protocol.mapper.protocol.CachedUserAttributesProtocolMapper
+com.epam.aidial.keycloak.helpers.protocol.CachedUserAttributesProtocolMapper

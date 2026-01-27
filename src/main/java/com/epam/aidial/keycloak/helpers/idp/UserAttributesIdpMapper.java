@@ -1,13 +1,13 @@
-package com.epam.aidial.protocol.mapper.idp;
+package com.epam.aidial.keycloak.helpers.idp;
 
 import java.util.List;
 
-import com.epam.aidial.protocol.mapper.config.MapperConfiguration;
-import com.epam.aidial.protocol.mapper.model.IdpType;
-import com.epam.aidial.protocol.mapper.model.UserAttributes;
-import com.epam.aidial.protocol.mapper.provider.UserAttributesProvider;
-import com.epam.aidial.protocol.mapper.provider.UserAttributesProviderFactory;
-import com.epam.aidial.protocol.mapper.util.TokenExtractor;
+import com.epam.aidial.keycloak.helpers.config.MapperConfiguration;
+import com.epam.aidial.keycloak.helpers.model.IdpType;
+import com.epam.aidial.keycloak.helpers.model.UserAttributes;
+import com.epam.aidial.keycloak.helpers.provider.UserAttributesProvider;
+import com.epam.aidial.keycloak.helpers.provider.UserAttributesProviderFactory;
+import com.epam.aidial.keycloak.helpers.util.TokenExtractor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

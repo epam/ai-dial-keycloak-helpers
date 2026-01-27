@@ -1,4 +1,4 @@
-package com.epam.aidial.protocol.mapper.config;
+package com.epam.aidial.keycloak.helpers.config;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

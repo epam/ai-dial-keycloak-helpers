@@ -1,9 +1,9 @@
-package com.epam.aidial.protocol.mapper.protocol;
+package com.epam.aidial.keycloak.helpers.protocol;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import com.epam.aidial.protocol.mapper.config.MapperConfiguration;
+import com.epam.aidial.keycloak.helpers.config.MapperConfiguration;
 
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.models.ClientSessionContext;

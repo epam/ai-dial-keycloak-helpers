@@ -1,4 +1,4 @@
-package com.epam.aidial.protocol.mapper.model;
+package com.epam.aidial.keycloak.helpers.model;
 
 import lombok.Builder;
 import lombok.Data;

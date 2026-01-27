@@ -1,9 +1,9 @@
-package com.epam.aidial.protocol.mapper.provider;
+package com.epam.aidial.keycloak.helpers.provider;
 
 import java.util.EnumMap;
 import java.util.Map;
 
-import com.epam.aidial.protocol.mapper.model.IdpType;
+import com.epam.aidial.keycloak.helpers.model.IdpType;
 
 import lombok.extern.slf4j.Slf4j;
 

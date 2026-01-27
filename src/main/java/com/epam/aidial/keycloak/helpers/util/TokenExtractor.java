@@ -1,4 +1,4 @@
-package com.epam.aidial.protocol.mapper.util;
+package com.epam.aidial.keycloak.helpers.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
