@@ -28,7 +28,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public abstract class UserAttributesIdpMapper extends AbstractIdentityProviderMapper  {
 
-    private final TokenExtractor tokenExtractor = new TokenExtractor();
     private final UserAttributesProviderFactory userAttributesProviderFactory = new UserAttributesProviderFactory();
 
     /**
@@ -58,7 +57,7 @@ public abstract class UserAttributesIdpMapper extends AbstractIdentityProviderMa
     private void fetchAndStore(UserModel user, IdentityProviderMapperModel mapperModel,
                                BrokeredIdentityContext context) {
         String tokenData = context.getToken();
-        String accessToken = tokenExtractor.extractAccessToken(tokenData);
+        String accessToken = TokenExtractor.extractAccessToken(tokenData);
 
         if (accessToken == null) {
             log.warn("No broker token available for user {}", user.getUsername());

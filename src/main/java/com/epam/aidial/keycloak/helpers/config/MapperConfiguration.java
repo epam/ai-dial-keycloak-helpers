@@ -5,7 +5,6 @@ import org.keycloak.models.IdentityProviderMapperModel;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.provider.ProviderConfigProperty;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -48,21 +47,18 @@ public class MapperConfiguration {
         );
     }
 
+    private static final List<ProviderConfigProperty> CONFIG_PROPERTIES = List.of(
+            getFetchJobTitleProperty(),
+            getFetchPhotoProperty()
+    );
+
     /**
      * Returns config properties supported by this mapper family.
      *
      * @return list of config properties
      */
     public static List<ProviderConfigProperty> getConfigProperties() {
-        List<ProviderConfigProperty> properties = new ArrayList<>();
-
-        ProviderConfigProperty fetchJobTitle = getFetchJobTitleProperty();
-        properties.add(fetchJobTitle);
-
-        ProviderConfigProperty fetchPhoto = getFetchPhotoProperty();
-        properties.add(fetchPhoto);
-
-        return properties;
+        return CONFIG_PROPERTIES;
     }
 
     private static ProviderConfigProperty getFetchJobTitleProperty() {

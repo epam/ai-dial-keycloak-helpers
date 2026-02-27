@@ -1,7 +1,9 @@
 package com.epam.aidial.keycloak.helpers.util;
 
+import com.epam.aidial.keycloak.helpers.exception.TokenExtractionException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -9,11 +11,13 @@ import lombok.extern.slf4j.Slf4j;
  * Keycloak stores the full OAuth response as JSON, not just the access_token.
  */
 @Slf4j
+@UtilityClass
 public class TokenExtractor {
 
     private static final String CLAIM_ACCESS_TOKEN = "access_token";
+    private static final String BASE64_JSON_PREFIX = "eyJ";
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
      * Extract access_token from Keycloak's stored token data.
@@ -26,13 +30,14 @@ public class TokenExtractor {
             throw new IllegalArgumentException("Token data is null or empty");
         }
 
-        if (tokenData.startsWith("eyJ")) {
+        // "eyJ" is the base64-encoded prefix of JWT token
+        if (tokenData.startsWith(BASE64_JSON_PREFIX)) {
             log.debug("Token is already a plain JWT");
             return tokenData;
         }
 
         try {
-            JsonNode json = mapper.readTree(tokenData);
+            JsonNode json = MAPPER.readTree(tokenData);
             JsonNode accessTokenNode = json.get(CLAIM_ACCESS_TOKEN);
 
             if (accessTokenNode == null || accessTokenNode.isNull()) {
@@ -44,7 +49,7 @@ public class TokenExtractor {
 
         } catch (Exception e) {
             log.error("Failed to extract access_token from token data");
-            throw new RuntimeException("Failed to extract access_token", e);
+            throw new TokenExtractionException("Failed to extract access_token", e);
         }
     }
 }
