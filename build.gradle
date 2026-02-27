@@ -2,6 +2,7 @@ plugins {
     id "java"
     id "application"
     id 'checkstyle'
+    id 'maven-publish'
 }
 
 group = 'com.epam.aidial'
@@ -49,5 +50,24 @@ jar {
             'Built-By': System.getProperty('user.name'),
             'Built-JDK': System.getProperty('java.version')
         )
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId = 'aidial-keycloak-mappers'
+        }
+    }
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/${System.getenv('GITHUB_REPOSITORY')}")
+            credentials {
+                username = System.getenv("GPR_USERNAME")
+                password = System.getenv("GPR_PASSWORD")
+            }
+        }
     }
 }
