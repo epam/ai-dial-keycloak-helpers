@@ -39,4 +39,4 @@ jobs:
         env:
           GPR_USERNAME: ${{ github.actor }}
           GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-      - run: ls -la
+      - run: ls -laR
