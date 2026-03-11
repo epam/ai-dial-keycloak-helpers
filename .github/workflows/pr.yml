@@ -38,7 +38,10 @@ jobs:
           build-scan-publish: true
 
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew        
+        run: chmod +x gradlew
+
+      - name: Grant execute permission for gradlew
+        run: ./gradlew tasks      
 
       - run: ./gradlew build -x test
         env:
@@ -51,7 +54,7 @@ jobs:
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
         with:
-          name: aidial-keycloak-mappers-0.1.0.jar
+          name: aidial-keycloak-mappers-0.1.0
           path: build/libs/aidial-keycloak-mappers-0.1.0.jar
 
       
