@@ -2,6 +2,7 @@ plugins {
     id "java"
     id "application"
     id 'checkstyle'
+    id 'maven-publish'
 }
 
 group = 'com.epam.aidial'
@@ -49,5 +50,28 @@ jar {
             'Built-By': System.getProperty('user.name'),
             'Built-JDK': System.getProperty('java.version')
         )
+    }
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            
+            groupId = project.group
+            artifactId = 'aidial-keycloak-mappers'
+            version = project.version
+        }
+    }
+    
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/epam/ai-dial-keycloak-helpers")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
     }
 }
