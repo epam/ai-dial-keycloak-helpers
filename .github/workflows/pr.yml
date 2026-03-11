@@ -61,4 +61,4 @@ jobs:
         run: ./gradlew publish
         env:
           GPR_USERNAME: ${{ github.actor }}
-          GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          GPR_PASSWORD: ${{ secrets.ACTIONS_BOT_TOKEN }}
