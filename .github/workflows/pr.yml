@@ -48,9 +48,10 @@ jobs:
       - name: check if lib exists
         run: ls -la build/libs/
 
-      - name: publish library  
-        run: ./gradlew publish
-        env:
-          GPR_USERNAME: ${{ github.actor }}
-          GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aidial-keycloak-mappers-0.1.0.jar
+          path: build/libs/aidial-keycloak-mappers-0.1.0.jar
+
+      
