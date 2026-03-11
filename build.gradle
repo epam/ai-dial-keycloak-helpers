@@ -69,8 +69,8 @@ publishing {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/epam/ai-dial-keycloak-helpers")
             credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
+                username = System.getenv("GPR_USERNAME")
+                password = System.getenv("GPR_PASSWORD")
             }
         }
     }
