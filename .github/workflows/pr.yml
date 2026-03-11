@@ -40,7 +40,7 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Grant execute permission for gradlew
+      - name: check tasks
         run: ./gradlew tasks      
 
       - run: ./gradlew build -x test
