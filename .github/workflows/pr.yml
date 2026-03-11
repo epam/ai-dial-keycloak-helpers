@@ -48,7 +48,8 @@ jobs:
       - name: check if lib exists
         run: ls -la build/libs/
 
-      - run: ./gradlew pub
+      - name: publish library  
+        run: ./gradlew publish
         env:
           GPR_USERNAME: ${{ github.actor }}
           GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
