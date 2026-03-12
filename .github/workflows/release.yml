@@ -37,12 +37,14 @@ jobs:
   
       - run: ./gradlew build -x test
         env:
+          TAG: ${{ env.TAG }}  
           GPR_USERNAME: ${{ github.actor }}
           GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: publish to Github packages
         run: ./gradlew publish
         env:
+          TAG: ${{ env.TAG }}  
           GPR_USERNAME: ${{ github.actor }}
           GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 

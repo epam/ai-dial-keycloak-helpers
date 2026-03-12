@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'com.epam.aidial'
-version = "0.1.1"
+version = System.getenv('TAG') ?: '0.1.1-SNAPSHOT'
 
 dependencies {
     compileOnly "org.keycloak:keycloak-core:${keycloakVersion}"
