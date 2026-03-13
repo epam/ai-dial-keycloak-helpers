@@ -1,14 +1,14 @@
-# name: PR Workflow
+name: PR Workflow
 
-# on:
-#   pull_request:
-#     branches: [development, release-*]
+on:
+  pull_request:
+    branches: [development, release-*]
 
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
-# jobs:
-#   run_tests:
-#     uses: epam/ai-dial-ci/.github/workflows/java_pr.yml@2.6.0
-#     secrets: inherit
+jobs:
+  run_tests:
+    uses: epam/ai-dial-ci/.github/workflows/java_pr.yml@2.6.0
+    secrets: inherit
