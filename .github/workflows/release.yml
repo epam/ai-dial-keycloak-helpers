@@ -41,12 +41,15 @@ jobs:
           GPR_USERNAME: ${{ github.actor }}
           GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: check if lib exists
+        run: ls -la build/libs/
+
       - name: publish to Github packages
         run: ./gradlew publish
         env:
           TAG: ${{ env.TAG }}  
           GPR_USERNAME: ${{ github.actor }}
-          GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          GPR_PASSWORD: ${{ secrets.PAT_TOKEN }}
 
       - name: Create Github Release
         uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1.20.0
