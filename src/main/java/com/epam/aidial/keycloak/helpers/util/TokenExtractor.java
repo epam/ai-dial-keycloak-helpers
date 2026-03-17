@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 public class TokenExtractor {
 
     private static final String CLAIM_ACCESS_TOKEN = "access_token";
-    private static final String BASE64_JSON_PREFIX = "eyJ";
+    private static final String JWT_PREFIX = "eyJ";
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -31,7 +31,7 @@ public class TokenExtractor {
         }
 
         // "eyJ" is the base64-encoded prefix of JWT token
-        if (tokenData.startsWith(BASE64_JSON_PREFIX)) {
+        if (tokenData.startsWith(JWT_PREFIX)) {
             log.debug("Token is already a plain JWT");
             return tokenData;
         }

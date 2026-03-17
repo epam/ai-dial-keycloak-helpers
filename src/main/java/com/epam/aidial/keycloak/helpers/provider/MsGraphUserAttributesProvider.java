@@ -27,8 +27,12 @@ public class MsGraphUserAttributesProvider implements UserAttributesProvider {
     private static final String DATA_URI_FORMAT = "data:%s;base64,%s";
     private static final String DEFAULT_PHOTO_MIME_TYPE = "image/jpeg";
 
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final HttpClient httpClient;
     private final ObjectMapper mapper = new ObjectMapper();
+
+    public MsGraphUserAttributesProvider(HttpClient httpClient) {
+        this.httpClient = httpClient;
+    }
 
     @Override
     public IdpType getIdpType() {
@@ -57,16 +61,13 @@ public class MsGraphUserAttributesProvider implements UserAttributesProvider {
         }
     }
 
-    private HttpRequest createGraphRequest(String url, String accessToken) {
-        return HttpRequest.newBuilder()
-                .uri(URI.create(url))
+    private JsonNode fetchUserProfile(String accessToken) {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(USER_PROFILE_URL))
                 .header("Authorization", "Bearer " + accessToken)
+                .header("Accept", "application/json")
                 .GET()
                 .build();
-    }
-
-    private JsonNode fetchUserProfile(String accessToken) {
-        HttpRequest request = createGraphRequest(USER_PROFILE_URL, accessToken);
 
         try {
             HttpResponse<InputStream> response = httpClient.send(request,
@@ -95,7 +96,11 @@ public class MsGraphUserAttributesProvider implements UserAttributesProvider {
     @Override
     public String fetchPhotoAsBase64(String accessToken) {
         log.debug("Fetching photo from: {}", ME_PHOTO_URL);
-        HttpRequest request = createGraphRequest(ME_PHOTO_URL, accessToken);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(ME_PHOTO_URL))
+                .header("Authorization", "Bearer " + accessToken)
+                .GET()
+                .build();
 
         try {
             HttpResponse<InputStream> response = httpClient.send(request,
