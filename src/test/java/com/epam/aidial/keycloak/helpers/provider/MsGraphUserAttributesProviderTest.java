@@ -83,7 +83,7 @@ public class MsGraphUserAttributesProviderTest {
     }
 
     @Test(expected = GraphApiException.class)
-    public void getUserAttributesThrowsOnIOException() throws Exception {
+    public void getUserAttributesThrowsOnIoException() throws Exception {
         doThrow(new IOException("connection refused")).when(httpClient).send(argThat(PROFILE_REQUEST), any());
 
         provider.getUserAttributes("test-token");
@@ -146,7 +146,7 @@ public class MsGraphUserAttributesProviderTest {
     }
 
     @Test
-    public void fetchPhotoAsBase64ReturnsNullOnIOException() throws Exception {
+    public void fetchPhotoAsBase64ReturnsNullOnIoException() throws Exception {
         doThrow(new IOException("timeout")).when(httpClient).send(argThat(PHOTO_REQUEST), any());
 
         assertNull(provider.fetchPhotoAsBase64("test-token"));
