@@ -37,11 +37,14 @@ jobs:
       - name: Build project
         run: ./gradlew build -x test
 
+      - name: Generate Gradle dependency lock
+        run: ./gradlew dependencies --write-locks
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: fs
-          scan-ref: build/libs
+          scan-ref: .
           format: json
           output: trivy-results.json
           exit-code: 0
