@@ -10,9 +10,16 @@ version = System.getenv('TAG') ?: '0.1.1-SNAPSHOT'
 
 configurations.configureEach {
     exclude group: 'com.github.jai-imageio', module: 'jai-imageio-core'
+    resolutionStrategy.activateDependencyLocking()
 }
 
 dependencies {
+    constraints {
+        implementation("com.google.protobuf:protobuf-java:3.25.5") {
+            because "CVE-2024-7254 - StackOverflow vulnerability"
+        }
+    }
+
     compileOnly "org.keycloak:keycloak-core:${keycloakVersion}"
     compileOnly "org.keycloak:keycloak-server-spi:${keycloakVersion}"
     compileOnly "org.keycloak:keycloak-server-spi-private:${keycloakVersion}"
