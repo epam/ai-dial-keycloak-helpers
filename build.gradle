@@ -10,6 +10,7 @@ version = System.getenv('TAG') ?: '0.1.1-SNAPSHOT'
 
 configurations.configureEach {
     exclude group: 'com.github.jai-imageio', module: 'jai-imageio-core'
+    resolutionStrategy.activateDependencyLocking()
 }
 
 dependencies {
