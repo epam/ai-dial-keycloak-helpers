@@ -24,7 +24,7 @@ dependencies {
         implementation("io.netty:netty-codec-http2:4.1.132.Final") {
             because "CVE-2026-33871 - Denial of Service via HTTP/2 CONTINUATION frame flood"
         }
-        implementation("org.codehaus.plexus:plexus-utils:3.6.1") {
+        checkstyle("org.codehaus.plexus:plexus-utils:3.6.1") {
             because "CVE-2025-67030 - Directory Traversal in extractFile method"
         }
     }
