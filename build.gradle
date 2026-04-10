@@ -18,6 +18,15 @@ dependencies {
         implementation("com.google.protobuf:protobuf-java:3.25.5") {
             because "CVE-2024-7254 - StackOverflow vulnerability"
         }
+        implementation("io.netty:netty-codec-http:4.1.132.Final") {
+            because "CVE-2026-33870 - Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding"
+        }
+        implementation("io.netty:netty-codec-http2:4.1.132.Final") {
+            because "CVE-2026-33871 - Denial of Service via HTTP/2 CONTINUATION frame flood"
+        }
+        checkstyle("org.codehaus.plexus:plexus-utils:3.6.1") {
+            because "CVE-2025-67030 - Directory Traversal in extractFile method"
+        }
     }
 
     compileOnly "org.keycloak:keycloak-core:${keycloakVersion}"
