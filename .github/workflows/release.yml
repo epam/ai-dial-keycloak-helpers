@@ -26,22 +26,22 @@ jobs:
         with:
           lfs: true
 
-      - uses: epam/ai-dial-ci/actions/java_prepare@3.1.3
+      - uses: epam/ai-dial-ci/actions/java_prepare@3.2.0
         with:
           java-version: "21"
           java-distribution: "temurin"
           build-scan-publish: true
-  
+
       - run: ./gradlew build -x test
         env:
-          TAG: ${{ env.TAG }}  
+          TAG: ${{ env.TAG }}
           GPR_USERNAME: ${{ github.actor }}
           GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: publish to Github packages
         run: ./gradlew publish
         env:
-          TAG: ${{ env.TAG }}  
+          TAG: ${{ env.TAG }}
           GPR_USERNAME: ${{ github.actor }}
           GPR_PASSWORD: ${{ secrets.PAT_TOKEN }}
 
@@ -60,4 +60,4 @@ jobs:
 
 
 
-         
+
