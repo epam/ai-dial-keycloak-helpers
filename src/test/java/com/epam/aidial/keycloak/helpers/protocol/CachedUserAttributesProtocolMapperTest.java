@@ -10,6 +10,7 @@ import org.keycloak.representations.IDToken;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -29,8 +30,8 @@ public class CachedUserAttributesProtocolMapperTest {
         when(mappingModel.getConfig()).thenReturn(config);
 
         UserModel user = mock(UserModel.class);
-        when(user.getFirstAttribute("jobTitle")).thenReturn("Engineer");
-        when(user.getFirstAttribute("picture")).thenReturn("data:image/jpeg;base64,xxx");
+        when(user.getAttributeStream("jobTitle")).thenReturn(Stream.of("Engineer"));
+        when(user.getAttributeStream("picture")).thenReturn(Stream.of("data:image/jpeg;base64,xxx"));
 
         UserSessionModel userSession = mock(UserSessionModel.class);
         when(userSession.getUser()).thenReturn(user);
@@ -53,8 +54,53 @@ public class CachedUserAttributesProtocolMapperTest {
         when(mappingModel.getConfig()).thenReturn(config);
 
         UserModel user = mock(UserModel.class);
-        when(user.getFirstAttribute("jobTitle")).thenReturn("Engineer");
-        when(user.getFirstAttribute("picture")).thenReturn("data:image/jpeg;base64,xxx");
+        when(user.getAttributeStream("jobTitle")).thenReturn(Stream.of("Engineer"));
+        when(user.getAttributeStream("picture")).thenReturn(Stream.of("data:image/jpeg;base64,xxx"));
+
+        UserSessionModel userSession = mock(UserSessionModel.class);
+        when(userSession.getUser()).thenReturn(user);
+
+        IDToken token = new IDToken();
+
+        mapper.setClaim(token, mappingModel, userSession,
+                mock(KeycloakSession.class), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("job_title"));
+        assertFalse(token.getOtherClaims().containsKey("picture"));
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void setClaimThrowsWhenMultipleAttributeValues() {
+        ProtocolMapperModel mappingModel = mock(ProtocolMapperModel.class);
+        Map<String, String> config = new HashMap<>();
+        config.put("fetch.job.title", "true");
+        config.put("fetch.photo", "true");
+        when(mappingModel.getConfig()).thenReturn(config);
+
+        UserModel user = mock(UserModel.class);
+        when(user.getUsername()).thenReturn("testuser");
+        when(user.getAttributeStream("jobTitle")).thenReturn(Stream.of("Engineer", "Manager"));
+
+        UserSessionModel userSession = mock(UserSessionModel.class);
+        when(userSession.getUser()).thenReturn(user);
+
+        IDToken token = new IDToken();
+
+        mapper.setClaim(token, mappingModel, userSession,
+                mock(KeycloakSession.class), mock(ClientSessionContext.class));
+    }
+
+    @Test
+    public void setClaimSkipsWhenAttributeIsEmpty() {
+        ProtocolMapperModel mappingModel = mock(ProtocolMapperModel.class);
+        Map<String, String> config = new HashMap<>();
+        config.put("fetch.job.title", "true");
+        config.put("fetch.photo", "true");
+        when(mappingModel.getConfig()).thenReturn(config);
+
+        UserModel user = mock(UserModel.class);
+        when(user.getAttributeStream("jobTitle")).thenReturn(Stream.empty());
+        when(user.getAttributeStream("picture")).thenReturn(Stream.empty());
 
         UserSessionModel userSession = mock(UserSessionModel.class);
         when(userSession.getUser()).thenReturn(user);
@@ -68,4 +114,3 @@ public class CachedUserAttributesProtocolMapperTest {
         assertFalse(token.getOtherClaims().containsKey("picture"));
     }
 }
-

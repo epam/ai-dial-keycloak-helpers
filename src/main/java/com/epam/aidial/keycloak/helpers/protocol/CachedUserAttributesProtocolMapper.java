@@ -76,10 +76,15 @@ public class CachedUserAttributesProtocolMapper extends AbstractOIDCProtocolMapp
 
     private void addClaimIfPresent(IDToken token, UserModel user,
                                    String attribute, String claim) {
-        String value = user.getFirstAttribute(attribute);
-        if (value != null) {
-            token.getOtherClaims().put(claim, value);
-            log.debug("Set claim {}={} for user {}", attribute, value, user.getUsername());
+        List<String> values = user.getAttributeStream(attribute).toList();
+        if (values.size() > 1) {
+            throw new IllegalStateException(
+                    "Expected single value for attribute '" + attribute
+                            + "' but found " + values.size() + " for user " + user.getUsername());
+        }
+        if (!values.isEmpty()) {
+            token.getOtherClaims().put(claim, values.get(0));
+            log.debug("Set claim {}={} for user {}", claim, values.get(0), user.getUsername());
         }
     }
 }

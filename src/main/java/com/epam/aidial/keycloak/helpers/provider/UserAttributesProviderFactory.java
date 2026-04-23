@@ -3,6 +3,8 @@ package com.epam.aidial.keycloak.helpers.provider;
 import com.epam.aidial.keycloak.helpers.model.IdpType;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -11,6 +13,10 @@ import java.util.Map;
  */
 @Slf4j
 public class UserAttributesProviderFactory {
+
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
     private final Map<IdpType, UserAttributesProvider> providers;
 
@@ -21,7 +27,7 @@ public class UserAttributesProviderFactory {
 
     private void registerDefaultProviders() {
         // Add more providers here
-        registerProvider(new MsGraphUserAttributesProvider());
+        registerProvider(new MsGraphUserAttributesProvider(HTTP_CLIENT));
     }
 
     private void registerProvider(UserAttributesProvider provider) {
