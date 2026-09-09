@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   run_tests:
-    uses: epam/ai-dial-ci/.github/workflows/java_test.yml@3.2.0
+    uses: epam/ai-dial-ci/.github/workflows/java_test.yml@4.11.0
     secrets: inherit
     with:
       java-version: 21
