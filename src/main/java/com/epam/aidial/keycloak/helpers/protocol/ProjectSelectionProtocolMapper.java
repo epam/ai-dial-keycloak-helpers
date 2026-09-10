@@ -1,12 +1,13 @@
 package com.epam.aidial.keycloak.helpers.protocol;
 
-import com.epam.aidial.keycloak.helpers.authenticator.ProjectSelectionAuthenticator;
 import com.epam.aidial.keycloak.helpers.config.ProjectEntitlementConfiguration;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.slf4j.Slf4j;
-import org.keycloak.models.AuthenticatedClientSessionModel;
+import org.keycloak.http.HttpRequest;
 import org.keycloak.models.ClientSessionContext;
+import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.UserSessionModel;
@@ -21,10 +22,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Validate-and-emit protocol mapper (D-019, config-repo spec 02 §2 piece 3): at
- * <b>every token mint</b> reads the session's captured selection (client note set by
- * {@link ProjectSelectionAuthenticator} — untrusted client input) and the user's
- * cached entitlement (server data fetched by the entitlement IdP mapper).
+ * Validate-and-emit protocol mapper (D-019, config-repo spec 02 §2 piece 2 of 2):
+ * at <b>every token mint</b> reads the selection from <b>the request itself</b> —
+ * the {@code project} form parameter of the exchange/refresh POST this mint
+ * belongs to (untrusted client input) — and the user's cached entitlement
+ * (server data fetched by the entitlement IdP mapper).
  *
  * <p><b>selection ∈ entitlement → emit {@code project: "<selection>"}</b> as a plain
  * JSON string (access token only); <b>else → emit nothing</b> — HTTP 200, well-formed
@@ -32,9 +34,18 @@ import java.util.List;
  * claim-verification detects (config-repo spec 03 / the P3/P4 CLI MUST).
  *
  * <p>Validation is a set-membership comparison — the selection is never interpolated,
- * parsed, or executed (no injection surface). Selection is fixed per client session;
- * refreshes re-emit it; parallel sessions carry their own. A malformed cached
- * entitlement fails closed (no claim).
+ * parsed, or executed (no injection surface). A malformed cached entitlement fails
+ * closed (no claim).
+ *
+ * <p><b>No IdP session state is read or written</b> (the 2026-09-10 re-mint-defect
+ * amendment, config-repo spec 02 §4): the request is the ONLY selection source —
+ * no param → no claim, uniformly, with no fallback. The former
+ * {@code PROJECT_SELECTION} client-session note was frozen at the SSO user
+ * session's first consumer-client authorize and re-emitted cross-session (the
+ * live E2E falsification); the note machinery is <b>removed, not repaired</b> —
+ * per-grant requests carry their selection explicitly (authorize + exchange +
+ * every refresh POST, the RFC 6749 §6 shape), so parallel sessions are isolated
+ * by construction and a mid-session aliasing has no shared state to arise from.
  */
 @Slf4j
 public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
@@ -61,8 +72,10 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
 
     @Override
     public String getHelpText() {
-        return "Emits the session's selected project as the singular 'project' claim when the selection "
-                + "is within the user's cached project entitlement; emits nothing otherwise (silent drop)";
+        return "Emits the request's selected project (the 'project' form parameter of the exchange/refresh POST) "
+                + "as the singular 'project' claim when the selection is within the user's cached project "
+                + "entitlement; emits nothing otherwise, and when the request carries no selection "
+                + "(silent drop — no param → no claim, uniformly)";
     }
 
     @Override
@@ -84,8 +97,11 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
 
         ProjectEntitlementConfiguration config = ProjectEntitlementConfiguration.fromModel(mappingModel);
 
-        AuthenticatedClientSessionModel clientSession = clientSessionCtx.getClientSession();
-        String selection = clientSession != null ? clientSession.getNote(ProjectSelectionAuthenticator.CLIENT_NOTE) : null;
+        // Selection source: the REQUEST only (config-repo spec 02 §4, amended
+        // 2026-09-10). Guarded — the context/httpRequest may be null outside
+        // request scope (service-account/offline mints) → no claim.
+        String selection = requestFormParam(keycloakSession, config.getSelectionParam());
+
         String entitlementJson = userSession.getUser().getFirstAttribute(config.getEntitlementAttribute());
         if (selection == null || selection.isEmpty() || entitlementJson == null) {
             return;
@@ -101,9 +117,36 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
 
         if (entitlement.contains(selection)) {
             token.getOtherClaims().put(config.getClaimName(), selection);
-            log.debug("Emitted project claim for entitled selection");
+            log.debug("Emitted project claim for the request's entitled selection");
         } else {
             log.debug("Selection not within the user's entitlement — no claim emitted (silent drop)");
         }
+    }
+
+    /**
+     * The {@code paramName} form parameter of THIS mint's own request, or
+     * {@code null} when absent or when no request scope exists. The accessor is
+     * the documented Quarkus/Resteasy pattern (the decoded form parameters are
+     * cached after the token endpoint's own {@code @FormParam} parsing) — its
+     * live behavior on Keycloak 26.7.2 is proven by the rig's re-mint proof
+     * (config-repo spec 02 §9, implementation-time unknown (a)).
+     */
+    private static String requestFormParam(KeycloakSession keycloakSession, String paramName) {
+        if (keycloakSession == null) {
+            return null;
+        }
+        KeycloakContext context = keycloakSession.getContext();
+        if (context == null) {
+            return null;
+        }
+        HttpRequest request = context.getHttpRequest();
+        if (request == null) {
+            return null;
+        }
+        MultivaluedMap<String, String> formParams = request.getDecodedFormParameters();
+        if (formParams == null) {
+            return null;
+        }
+        return formParams.getFirst(paramName);
     }
 }

@@ -6,6 +6,21 @@ the D-019 config repo (`epam-keycloak-dial-config/specs/02-keycloak-broker.md`,
 amendment of 2026-09-09) — this document specifies the extension's internals against
 that contract and does not duplicate it.
 
+> **AMENDED 2026-09-10 (the re-mint defect fix — the system contract's amendment is
+> normative; this banner records the deltas).** The extension is now **two pieces**, not
+> three: the selection-capture authenticator (§2 below) is **RETIRED** — its
+> `PROJECT_SELECTION` client-session note was frozen at the SSO user session's first
+> consumer-client authorize and re-emitted cross-session (the live E2E falsification on
+> 2026-09-09); per the user ruling the state is removed, not repaired — no note, no
+> authenticator, no fallback. The protocol mapper (§3) now reads the selection from
+> **the request itself** — the `project` form parameter of the exchange/refresh POST
+> (`keycloakSession.getContext().getHttpRequest().getDecodedFormParameters()`, guarded
+> for null request scope) — **no param → no claim, uniformly**; every mint of a grant
+> (exchange + every refresh POST) carries the selection explicitly, so parallel
+> sessions are isolated by construction. The sentences below describing the note
+> capture and the "refreshes re-emit it" semantics are the falsified 2026-09-09
+> design, kept as the audit trail.
+
 **Branch posture**: local only. Never pushed without an explicit ruling — this branch
 carries a PoC for an org-internal design. **Post-PoC option (recorded, not decided)**:
 upstreaming this as a PR to `epam/ai-dial-keycloak-helpers` is the ideal corporate-ask

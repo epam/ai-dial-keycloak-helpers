@@ -12,8 +12,7 @@ import java.util.List;
  * Configuration for the D-019 project-entitlement mappers.
  *
  * <p>Backed by mapper model config properties and shared between the IdP mapper
- * (Graph fetch), the selection-capture authenticator and the validate-and-emit
- * protocol mapper.
+ * (Graph fetch) and the validate-and-emit protocol mapper.
  */
 @Value
 public class ProjectEntitlementConfiguration {
@@ -80,7 +79,7 @@ public class ProjectEntitlementConfiguration {
                 "Prefix stripped from a conforming group display name to obtain the project id (named mode)",
                 DEFAULT_CONVENTION_PREFIX));
         properties.add(textProperty(SELECTION_PARAM, "Selection Parameter",
-                "Custom authorize parameter the client sends to select the session's project", DEFAULT_SELECTION_PARAM));
+                "Request parameter carrying the session's project selection (authorize URL + the exchange/refresh POST form bodies)", DEFAULT_SELECTION_PARAM));
         properties.add(textProperty(CLAIM_NAME, "Claim Name",
                 "Name of the singular claim emitted on entitlement", DEFAULT_CLAIM_NAME));
         properties.add(textProperty(ENTITLEMENT_ATTRIBUTE, "Entitlement Attribute",
