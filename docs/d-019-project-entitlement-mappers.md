@@ -52,6 +52,8 @@ permissions; the Graph calls run with the **user's brokered token** (delegated
 
 ## The three new pieces
 
+*(2026-09-10: two pieces remain — §2 below is RETIRED, see the banner.)*
+
 ### 1. `ProjectEntitlementIdpMapper` (IdP mapper, `idp/`)
 
 Runs at every **brokered** login (first login and `update-brokered-user` — mirror the
@@ -63,7 +65,7 @@ convention-matching projects (serialized JSON array; values per §"Modes").
 Replaces nothing — the existing job-title/photo fetch coexists unchanged; this is a
 separate mapper class and separate user attribute.
 
-### 2. `ProjectSelectionAuthenticator` (authenticator, new `authenticator/` package)
+### 2. `ProjectSelectionAuthenticator` (authenticator, new `authenticator/` package) — **[RETIRED 2026-09-10 — see the banner; do NOT re-implement from the test plan]**
 
 The selection carrier is a **custom authorize parameter `project`** — a literal
 `scope=project-X` cannot work (scope values must be linked scope entities; the amended
@@ -149,9 +151,10 @@ anything else is invisible by construction (recorded at debug level, never emitt
 - **Unit** (mirror the existing per-class conventions): regex/prefix parsing; mode
   detection (null vs populated displayName, mixed batch); entitlement
   serialization/de-dup; selection validation (member/non-member/malformed/absent
-  param); authenticator param capture (present/absent/multiple values — first wins,
-  logged); protocol-mapper emission matrix (selection × entitlement × token type);
-  failure semantics (Graph error → previous/empty entitlement).
+  param); ~~authenticator param capture (present/absent/multiple values — first wins,
+  logged)~~ **[RETIRED 2026-09-10]**; protocol-mapper emission matrix (now:
+  **request-param-carried** selection × entitlement × token type, incl. null request
+  context / null session); failure semantics (Graph error → previous/empty entitlement).
 - **Integration = the rig** (not in-repo): the config repo's `specs/03-verification.md`
   is the end-to-end test (one real corporate browser login + silent round-2); its
   checks P2-V1..P2-V8 are this extension's acceptance criteria. Nothing here duplicates
