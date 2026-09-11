@@ -43,6 +43,7 @@ public class ProjectSelectionProtocolMapperTest {
 
     private static final String ENTITLED = "[\"EPM-AEM\",\"ABC-42\"]";
     private static final String ENTITLEMENT_ATTRIBUTE = "projectEntitlement";
+    private static final String TIMESTAMP_ATTRIBUTE = "projectEntitlementAt";
 
     private final ProjectSelectionProtocolMapper mapper = new ProjectSelectionProtocolMapper();
 
@@ -55,11 +56,22 @@ public class ProjectSelectionProtocolMapperTest {
     }
 
     private UserSessionModel userSessionWithEntitlement(String entitlementJson) {
+        return userSessionWith(entitlementJson, null);
+    }
+
+    private UserSessionModel userSessionWith(String entitlementJson, String fetchedAt) {
         UserModel user = mock(UserModel.class);
         when(user.getFirstAttribute(ENTITLEMENT_ATTRIBUTE)).thenReturn(entitlementJson);
+        when(user.getFirstAttribute(TIMESTAMP_ATTRIBUTE)).thenReturn(fetchedAt);
         UserSessionModel userSession = mock(UserSessionModel.class);
         when(userSession.getUser()).thenReturn(user);
         return userSession;
+    }
+
+    private ProtocolMapperModel mappingModelWithMaxAge(String maxAgeMinutes) {
+        ProtocolMapperModel mappingModel = mappingModel();
+        mappingModel.getConfig().put("entitlement.max-age", maxAgeMinutes);
+        return mappingModel;
     }
 
     /**
@@ -251,6 +263,73 @@ public class ProjectSelectionProtocolMapperTest {
         // The premise the guard requires — the properly declared admin-only
         // attribute (the rig's realm policy) — must not change the emit path.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+
+        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+    }
+
+    @Test
+    public void freshCacheWithinBoundEmits() {
+        AccessToken token = new AccessToken();
+        String fresh = Long.toString(System.currentTimeMillis() - 60_000L); // 1 min old
+
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, fresh),
+                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+
+        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+    }
+
+    @Test
+    public void cacheOlderThanBoundEmitsNothing() {
+        AccessToken token = new AccessToken();
+        String stale = Long.toString(System.currentTimeMillis() - 10 * 60_000L); // 10 min old, bound 5
+
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, stale),
+                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void missingTimestampWithBoundEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // Fail closed: with the bound enabled, a cache without a fetch timestamp
+        // (e.g. written by a pre-amendment build) is treated as absent.
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, null),
+                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void unparsableTimestampWithBoundEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, "not-a-number"),
+                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void zeroBoundDisablesTheAgeCheck() {
+        AccessToken token = new AccessToken();
+        String veryOld = "1546300800000"; // 2019 — the bound is disabled; age is never checked
+
+        mapper.setClaim(token, mappingModelWithMaxAge("0"), userSessionWith(ENTITLED, veryOld),
+                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+
+        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+    }
+
+    @Test
+    public void boundAbsentFromConfigDisablesTheAgeCheck() {
+        AccessToken token = new AccessToken();
+        String veryOld = "1546300800000";
+
+        // The default realm (no entitlement.max-age configured) — enforcement inert.
+        mapper.setClaim(token, mappingModel(), userSessionWith(ENTITLED, veryOld),
                 sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
 
         assertEquals("EPM-AEM", token.getOtherClaims().get("project"));

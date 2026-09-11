@@ -11,6 +11,7 @@ import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
 import org.keycloak.models.RealmModel;
+import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.oidc.mappers.AbstractOIDCProtocolMapper;
 import org.keycloak.protocol.oidc.mappers.OIDCAccessTokenMapper;
@@ -126,6 +127,14 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
             return;
         }
 
+        // Freshness bound (the 2026-09-11 review hardening): when enabled, a cache
+        // older than the bound — or without a fetch timestamp — is treated as
+        // ABSENT → no claim (fail closed, never fail open). Caches the idle time
+        // of a correctly-refreshing mapper; a re-login refreshes and cures.
+        if (config.getEntitlementMaxAgeMinutes() > 0 && !entitlementCacheIsFresh(userSession.getUser(), config)) {
+            return;
+        }
+
         List<String> entitlement;
         try {
             entitlement = objectMapper.readValue(entitlementJson, new TypeReference<List<String>>() { });
@@ -191,6 +200,35 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
         }
         KeycloakContext context = keycloakSession.getContext();
         return context == null ? null : context.getRealm();
+    }
+
+    /**
+     * The freshness half of the cache premise: with the {@code entitlement.max-age}
+     * bound enabled (T &gt; 0), the cache counts as present only when its
+     * {@code projectEntitlementAt} timestamp exists and is younger than T — a missing,
+     * unparsible, or too-old timestamp all treat the cache as absent (fail closed).
+     */
+    private boolean entitlementCacheIsFresh(UserModel user, ProjectEntitlementConfiguration config) {
+        String timestamp = user.getFirstAttribute(ProjectEntitlementConfiguration.ENTITLEMENT_TIMESTAMP_ATTRIBUTE);
+        Long fetchedAt = null;
+        if (timestamp != null) {
+            try {
+                fetchedAt = Long.parseLong(timestamp.trim());
+            } catch (NumberFormatException e) {
+                log.warn("Cached project entitlement timestamp is unparsable — treating the cache as absent (fail closed)");
+            }
+        }
+        if (fetchedAt == null) {
+            log.warn("Cached project entitlement has no fetch timestamp and the freshness bound is {} minutes — treating the cache as absent (fail closed); one re-login refreshes it", config.getEntitlementMaxAgeMinutes());
+            return false;
+        }
+        long ageMillis = System.currentTimeMillis() - fetchedAt;
+        if (ageMillis > config.getEntitlementMaxAgeMinutes() * 60_000L) {
+            log.warn("Cached project entitlement is {} min old, beyond the {} min freshness bound — treating the cache as absent; one re-login refreshes it",
+                    ageMillis / 60_000L, config.getEntitlementMaxAgeMinutes());
+            return false;
+        }
+        return true;
     }
 
     /**

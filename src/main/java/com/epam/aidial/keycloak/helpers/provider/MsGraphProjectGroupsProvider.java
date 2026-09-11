@@ -77,12 +77,12 @@ public class MsGraphProjectGroupsProvider {
             int responseCode = conn.getResponseCode();
             if (responseCode != 200) {
                 log.error("Microsoft Graph /me/memberOf returned HTTP {}", responseCode);
-                throw new RuntimeException("Failed to fetch project groups: HTTP " + responseCode);
+                throw new GraphFetchException("Failed to fetch project groups: HTTP " + responseCode, responseCode);
             }
             return mapper.readTree(conn.getInputStream());
         } catch (IOException e) {
             log.error("Error calling Microsoft Graph /me/memberOf", e);
-            throw new RuntimeException("Error fetching project groups from Microsoft Graph", e);
+            throw new GraphFetchException("Error fetching project groups from Microsoft Graph", 0, e);
         }
     }
 
