@@ -76,7 +76,7 @@ public class MsGraphProjectGroupsProviderTest {
     }
 
     @Test
-    public void fetchesAndParsesASinglePage() {
+    public void fetchesAndParsesOnePage() {
         respondWith("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"Project EPM-AEM\"},{\"id\":\"id-2\",\"displayName\":null}]}");
 
         List<ProjectGroup> groups = provider().fetchProjectGroups("token", "Project ");
@@ -119,7 +119,7 @@ public class MsGraphProjectGroupsProviderTest {
     }
 
     @Test
-    public void pageCapExcessIsATemporaryFailure() {
+    public void pageCapExcessIsTemporary() {
         // Every page advertises another page on the allowed host — the chain can
         // never end; the cap must stop it as a temporary failure (statusCode 0).
         server.createContext("/v1.0/me/memberOf", exchange -> {
@@ -174,7 +174,7 @@ public class MsGraphProjectGroupsProviderTest {
     }
 
     @Test
-    public void errorResponseCarriesItsStatusAsALastingFailure() {
+    public void errorResponseCarriesLastingStatus() {
         respondWith("{\"error\":{\"code\":\"Authorization_RequestDenied\"}}", 403);
 
         try {

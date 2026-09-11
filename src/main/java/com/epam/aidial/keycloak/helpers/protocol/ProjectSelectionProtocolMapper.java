@@ -219,8 +219,9 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
                 .filter(mapperModel -> ProjectEntitlementIdpMapper.PROVIDER_ID.equals(mapperModel.getIdentityProviderMapper()))
                 .toList();
         if (feeders.isEmpty()) {
-            log.error("No entitlement fetch-mapper instance is configured in the realm — the entitlement attribute has no feeder and would never refresh — emitting no claim (fail closed). "
-                    + "Add the '{}' IdP mapper to the broker's mappers", ProjectEntitlementIdpMapper.PROVIDER_ID);
+            log.error("No entitlement fetch-mapper instance is configured in the realm — the entitlement attribute has no feeder and would never refresh "
+                            + "— emitting no claim (fail closed). Add the '{}' IdP mapper to the broker's mappers",
+                    ProjectEntitlementIdpMapper.PROVIDER_ID);
             return false;
         }
         for (IdentityProviderMapperModel feeder : feeders) {
@@ -236,8 +237,8 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
             IdentityProviderSyncMode effective = IdentityProviderMapperSyncModeDelegate
                     .combineIdpAndMapperSyncMode(idpMode, feeder.getSyncMode());
             if (effective == IdentityProviderSyncMode.IMPORT) {
-                log.error("Entitlement fetch mapper '{}' on IdP '{}' is effectively at sync mode IMPORT — the entitlement cache would freeze after the first login — emitting no claim (fail closed). "
-                        + "Configure the mapper at sync mode FORCE (or INHERIT over a FORCE or LEGACY federation)",
+                log.error("Entitlement fetch mapper '{}' on IdP '{}' is effectively at sync mode IMPORT — the entitlement cache would freeze after the first login "
+                                + "— emitting no claim (fail closed). Configure the mapper at sync mode FORCE (or INHERIT over a FORCE or LEGACY federation)",
                         feeder.getName(), feeder.getIdentityProviderAlias());
                 return false;
             }
@@ -281,7 +282,8 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
             }
         }
         if (fetchedAt == null) {
-            log.warn("Cached project entitlement has no fetch timestamp and the freshness bound is {} minutes — treating the cache as absent (fail closed); one re-login refreshes it", config.getEntitlementMaxAgeMinutes());
+            log.warn("Cached project entitlement has no fetch timestamp and the freshness bound is {} minutes — treating the cache as absent (fail closed); one re-login cures it",
+                    config.getEntitlementMaxAgeMinutes());
             return false;
         }
         long ageMillis = System.currentTimeMillis() - fetchedAt;
