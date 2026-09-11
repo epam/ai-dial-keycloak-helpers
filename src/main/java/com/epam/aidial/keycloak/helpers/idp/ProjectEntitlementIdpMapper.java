@@ -103,8 +103,8 @@ public class ProjectEntitlementIdpMapper extends AbstractIdentityProviderMapper 
 
             user.setSingleAttribute(config.getEntitlementAttribute(),
                     objectMapper.writeValueAsString(entitlement.getValues()));
-            log.debug("Cached project entitlement ({}, {} projects) for user {}",
-                    entitlement.getMode(), entitlement.getValues().size(), user.getUsername());
+            log.debug("Cached project entitlement ({} projects) for user {}",
+                    entitlement.getValues().size(), user.getUsername());
 
         } catch (Exception e) {
             log.warn("Project entitlement fetch failed for user {} — keeping previous entitlement if present",

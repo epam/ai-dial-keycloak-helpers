@@ -8,67 +8,68 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
- * The user's project entitlement: the ordered, de-duplicated set of convention-matching
- * project values resolved from the user's Graph groups, plus the mode it was resolved in.
- *
- * <p>Mode semantics (D-019, config-repo spec 02 §5):
+ * The user's project entitlement: the ordered, de-duplicated set of project values
+ * resolved from the user's Graph groups, each value per the <b>per-group fallback</b>
+ * (amended 2026-09-11 — the former list-wide named/degraded "mode" is dissolved):
  * <ul>
- *   <li><b>named</b> — every group's {@code displayName} was readable; values are parsed
- *       project ids (display name minus the convention prefix), convention-regex filtered.</li>
- *   <li><b>degraded</b> — at least one {@code displayName} was {@code null} (no delegated
- *       {@code GroupMember.Read.All}); values are the groups' object IDs. Fail conservative:
- *       a mixed batch degrades entirely and is logged.</li>
+ *   <li>a visible {@code displayName} that <b>conforms</b> to the convention regex →
+ *       the parsed project id (display name minus the convention prefix);</li>
+ *   <li>a visible <b>non-conforming</b> name (e.g. a {@code Project Managers} group) →
+ *       <b>excluded</b> — the regex gates every visible name in every case;</li>
+ *   <li>no visible name ({@code displayName: null} — no delegated
+ *       {@code GroupMember.Read.All}; Graph's documented "limited information"
+ *       serialization — the server-side filter still applied) → the group's
+ *       <b>object ID</b>. A null-name group is a real membership the Graph filter
+ *       admitted and is never dropped.</li>
  * </ul>
  *
- * <p>Only convention-conforming groups ever yield a value (D-019's fail-loud intent):
- * the Graph server-side {@code startswith(displayName,'Project ')} filter pre-selects the
- * candidate set, and the convention regex filters named mode further. Non-conforming names
- * are logged at debug level and never emitted.
+ * <p>There is no list-wide mode to configure, store, or flip. A genuinely mixed batch
+ * (some names visible, some null) is an anomaly — logged loudly (org reality: groups
+ * are all-named or all-null; the log is the observable signal for Graph-filter drift) —
+ * and still resolves per group, which is strictly stronger than the former
+ * degrade-the-whole-batch rule: a visible non-conforming name can never ride in.
  */
 @Slf4j
 @Value
 public class ProjectEntitlement {
 
-    public static final String MODE_NAMED = "named";
-    public static final String MODE_DEGRADED = "degraded";
-
     List<String> values;
-
-    String mode;
 
     /**
      * Resolves the entitlement from Graph groups.
      *
      * @param groups groups returned by Graph (the server-side prefix filter already applied)
      * @param regex  the project group naming convention
-     * @param prefix the convention prefix to strip for the project id (named mode)
+     * @param prefix the convention prefix to strip for the project id
      * @return the entitlement (possibly empty — an empty entitlement yields no claim)
      */
     public static ProjectEntitlement fromGroups(List<ProjectGroup> groups, String regex, String prefix) {
+        Pattern convention = Pattern.compile(regex);
         TreeSet<String> values = new TreeSet<>();
-        String mode;
+        int named = 0;
+        int byObjectId = 0;
 
-        boolean degraded = groups.stream().anyMatch(g -> g.getDisplayName() == null);
-        if (degraded) {
-            mode = MODE_DEGRADED;
-            // Server-side startswith filter was the only convention gate —
-            // group object IDs are the claim values (fail conservative).
-            groups.forEach(g -> values.add(g.getId()));
-            log.debug("Degraded mode ({} of {} groups without readable displayName) — entitlement = group object IDs",
-                    groups.stream().filter(g -> g.getDisplayName() == null).count(), groups.size());
-        } else {
-            mode = MODE_NAMED;
-            Pattern convention = Pattern.compile(regex);
-            for (ProjectGroup group : groups) {
-                String name = group.getDisplayName();
-                if (!convention.matcher(name).matches()) {
-                    log.debug("Group name '{}' does not match the project convention — excluded from entitlement", name);
-                    continue;
-                }
+        for (ProjectGroup group : groups) {
+            String name = group.getDisplayName();
+            if (name == null) {
+                // The Graph server-side startswith filter applied even when the name is
+                // hidden — the object ID is the group's claim value.
+                values.add(group.getId());
+                byObjectId++;
+            } else if (convention.matcher(name).matches()) {
                 values.add(name.startsWith(prefix) ? name.substring(prefix.length()) : name);
+                named++;
+            } else {
+                log.debug("Group name '{}' does not match the project convention — excluded from entitlement", name);
             }
         }
 
-        return new ProjectEntitlement(List.copyOf(values), mode);
+        if (named > 0 && byObjectId > 0) {
+            log.warn("Mixed project-group batch: {} groups with visible names, {} without — the entitlement mixes "
+                    + "parsed project ids and group object IDs (unexpected; a signal for Graph-filter drift)", named, byObjectId);
+        }
+        log.debug("Resolved project entitlement per-group: {} named, {} by object ID", named, byObjectId);
+
+        return new ProjectEntitlement(List.copyOf(values));
     }
 }
