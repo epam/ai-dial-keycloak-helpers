@@ -8,13 +8,19 @@ import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.IDToken;
+import org.keycloak.representations.userprofile.config.UPAttribute;
+import org.keycloak.representations.userprofile.config.UPAttributePermissions;
+import org.keycloak.representations.userprofile.config.UPConfig;
+import org.keycloak.userprofile.UserProfileProvider;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,12 +33,18 @@ import static org.mockito.Mockito.when;
  * 2026-09-10): the mint-side selection source is the REQUEST's {@code project}
  * form parameter — never IdP session state. No param → no claim, uniformly;
  * the mapper emits only when the request's selection ∈ the cached entitlement.
+ *
+ * <p>The fixture realm satisfies the mapper's premise guards (amended
+ * 2026-09-11): the entitlement attribute is declared admin-only in the User
+ * Profile, and the realm holds a healthy entitlement fetch-mapper feeder —
+ * the dedicated guard cases override one premise at a time.
  */
 public class ProjectSelectionProtocolMapperTest {
 
-    private final ProjectSelectionProtocolMapper mapper = new ProjectSelectionProtocolMapper();
-
     private static final String ENTITLED = "[\"EPM-AEM\",\"ABC-42\"]";
+    private static final String ENTITLEMENT_ATTRIBUTE = "projectEntitlement";
+
+    private final ProjectSelectionProtocolMapper mapper = new ProjectSelectionProtocolMapper();
 
     private ProtocolMapperModel mappingModel() {
         ProtocolMapperModel mappingModel = mock(ProtocolMapperModel.class);
@@ -44,24 +56,47 @@ public class ProjectSelectionProtocolMapperTest {
 
     private UserSessionModel userSessionWithEntitlement(String entitlementJson) {
         UserModel user = mock(UserModel.class);
-        when(user.getFirstAttribute("projectEntitlement")).thenReturn(entitlementJson);
+        when(user.getFirstAttribute(ENTITLEMENT_ATTRIBUTE)).thenReturn(entitlementJson);
         UserSessionModel userSession = mock(UserSessionModel.class);
         when(userSession.getUser()).thenReturn(user);
         return userSession;
     }
 
     /**
+     * The User Profile declaration the attribute-premise guard requires: the
+     * entitlement attribute declared admin-only (edit: admin) — the rig's realm
+     * policy, and the adopting realm's checklist item.
+     */
+    private static UPConfig adminOnlyProfile() {
+        UPConfig profile = new UPConfig();
+        profile.addOrReplaceAttribute(new UPAttribute(ENTITLEMENT_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("admin"))));
+        return profile;
+    }
+
+    /**
      * A KeycloakSession whose context carries an HTTP request with the given
      * form parameters — the mint-side selection source (the exchange/refresh
-     * POST body as the token endpoint decoded it).
+     * POST body as the token endpoint decoded it) — plus a realm whose User
+     * Profile declares the entitlement attribute admin-only (the attribute-
+     * premise guard's happy path).
      */
     private KeycloakSession sessionWithFormParams(MultivaluedMap<String, String> formParams) {
+        return sessionWith(formParams, adminOnlyProfile());
+    }
+
+    private KeycloakSession sessionWith(MultivaluedMap<String, String> formParams, UPConfig profileConfig) {
         HttpRequest request = mock(HttpRequest.class);
         when(request.getDecodedFormParameters()).thenReturn(formParams);
+        RealmModel realm = mock(RealmModel.class);
         KeycloakContext context = mock(KeycloakContext.class);
         when(context.getHttpRequest()).thenReturn(request);
+        when(context.getRealm()).thenReturn(realm);
+        UserProfileProvider profileProvider = mock(UserProfileProvider.class);
+        when(profileProvider.getConfiguration()).thenReturn(profileConfig);
         KeycloakSession session = mock(KeycloakSession.class);
         when(session.getContext()).thenReturn(context);
+        when(session.getProvider(UserProfileProvider.class)).thenReturn(profileProvider);
         return session;
     }
 
@@ -71,6 +106,14 @@ public class ProjectSelectionProtocolMapperTest {
             params.add(name, value);
         }
         return sessionWithFormParams(params);
+    }
+
+    private MultivaluedMap<String, String> selectionParam(String value) {
+        MultivaluedMap<String, String> params = new MultivaluedHashMap<>();
+        if (value != null) {
+            params.add("project", value);
+        }
+        return params;
     }
 
     @Test
@@ -170,5 +213,46 @@ public class ProjectSelectionProtocolMapperTest {
         Object claim = token.getOtherClaims().get("project");
         assertTrue(claim instanceof String);
         assertEquals("EPM-AEM", claim);
+    }
+
+    @Test
+    public void undeclaredEntitlementAttributeEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // The attribute-premise guard: an attribute absent from the realm's
+        // User Profile declaration is user-writable when unmanaged attributes
+        // are enabled — the premise of the mint decision is broken → no claim.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), new UPConfig()), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void userEditableEntitlementAttributeEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // The attribute-premise guard: a user-editable declaration lets the
+        // Account API self-write the entitlement — no claim (fail closed).
+        UPConfig userEditable = new UPConfig();
+        userEditable.addOrReplaceAttribute(new UPAttribute(ENTITLEMENT_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("user", "admin"))));
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), userEditable), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void adminOnlyDeclaredAttributeEmits() {
+        AccessToken token = new AccessToken();
+
+        // The premise the guard requires — the properly declared admin-only
+        // attribute (the rig's realm policy) — must not change the emit path.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+
+        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
     }
 }

@@ -10,6 +10,7 @@ import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
+import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserSessionModel;
 import org.keycloak.protocol.oidc.mappers.AbstractOIDCProtocolMapper;
 import org.keycloak.protocol.oidc.mappers.OIDCAccessTokenMapper;
@@ -17,9 +18,14 @@ import org.keycloak.protocol.oidc.mappers.OIDCAttributeMapperHelper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.AccessToken;
 import org.keycloak.representations.IDToken;
+import org.keycloak.representations.userprofile.config.UPAttribute;
+import org.keycloak.representations.userprofile.config.UPAttributePermissions;
+import org.keycloak.representations.userprofile.config.UPConfig;
+import org.keycloak.userprofile.UserProfileProvider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Validate-and-emit protocol mapper (D-019, config-repo spec 02 §2 piece 2 of 2):
@@ -52,6 +58,9 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
         implements OIDCAccessTokenMapper {
 
     public static final String PROVIDER_ID = "project-selection-protocol-mapper";
+
+    private static final String ROLE_USER = "user";
+    private static final String ROLE_ANONYMOUS = "anonymous";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -97,6 +106,16 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
 
         ProjectEntitlementConfiguration config = ProjectEntitlementConfiguration.fromModel(mappingModel);
 
+        // Attribute-premise guard (the 2026-09-11 review hardening): the cached
+        // entitlement is a plain user attribute used as the premise of an
+        // enforcement decision — its write surface is realm policy (the User
+        // Profile declaration), and a broken premise fails CLOSED here: no
+        // claim, loudly. Detection, not prevention — no token mapper can defend
+        // a realm's attribute-write surface.
+        if (!attributePremiseHolds(keycloakSession, config.getEntitlementAttribute())) {
+            return;
+        }
+
         // Selection source: the REQUEST only (config-repo spec 02 §4, amended
         // 2026-09-10). Guarded — the context/httpRequest may be null outside
         // request scope (service-account/offline mints) → no claim.
@@ -121,6 +140,57 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
         } else {
             log.debug("Selection not within the user's entitlement — no claim emitted (silent drop)");
         }
+    }
+
+    /**
+     * The realm's User Profile must declare the entitlement attribute and it
+     * must not be user-editable — an undeclared or user-writable attribute
+     * fails the mint's premise (self-written entitlements would mint claims).
+     * Resolves the realm configuration at the point of use; when the premise
+     * cannot be verified (no realm/session scope) it fails closed. Returns
+     * {@code true} only when the premise holds.
+     */
+    private boolean attributePremiseHolds(KeycloakSession keycloakSession, String attribute) {
+        RealmModel realm = realmOf(keycloakSession);
+        if (realm == null) {
+            log.error("No realm scope — the entitlement attribute '{}' premise cannot be verified — emitting no claim (fail closed)", attribute);
+            return false;
+        }
+        UserProfileProvider profileProvider = keycloakSession.getProvider(UserProfileProvider.class);
+        UPConfig profileConfig = profileProvider == null ? null : profileProvider.getConfiguration();
+        UPAttribute declaration = attributeDeclaration(profileConfig, attribute);
+        if (declaration == null) {
+            log.error("Entitlement attribute '{}' is not declared in the realm's User Profile — emitting no claim (fail closed). "
+                    + "Declare it admin-only (edit: admin) — an undeclared attribute is writable by users when unmanaged attributes are enabled", attribute);
+            return false;
+        }
+        UPAttributePermissions permissions = declaration.getPermissions();
+        Set<String> edit = permissions == null ? Set.of() : permissions.getEdit();
+        if (edit.contains(ROLE_USER) || edit.contains(ROLE_ANONYMOUS)) {
+            log.error("Entitlement attribute '{}' is user-editable in the realm's User Profile (edit: {}) — emitting no claim (fail closed). "
+                    + "Restrict the declaration to admin-only edit — a user-writable entitlement attribute is an enforcement-premise defect", attribute, edit);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Null-safe lookup of the attribute's User Profile declaration — a
+     * malformed (attribute-less) profile config reads as undeclared.
+     */
+    private static UPAttribute attributeDeclaration(UPConfig profileConfig, String attribute) {
+        if (profileConfig == null || profileConfig.getAttributes() == null) {
+            return null;
+        }
+        return profileConfig.getAttribute(attribute);
+    }
+
+    private static RealmModel realmOf(KeycloakSession keycloakSession) {
+        if (keycloakSession == null) {
+            return null;
+        }
+        KeycloakContext context = keycloakSession.getContext();
+        return context == null ? null : context.getRealm();
     }
 
     /**
