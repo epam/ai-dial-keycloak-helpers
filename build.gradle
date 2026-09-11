@@ -36,6 +36,23 @@ dependencies {
 
     implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
 
+    // Netty version floor for the whole graph (transitive via grpc-netty) — the Trivy
+    // CRITICAL/HIGH gate fails the build on the CVE set fixed in 4.1.136.Final.
+    implementation platform("io.netty:netty-bom:4.1.136.Final")
+    constraints {
+        implementation "io.netty:netty-buffer:4.1.136.Final"
+        implementation "io.netty:netty-codec:4.1.136.Final"
+        implementation "io.netty:netty-codec-dns:4.1.136.Final"
+        implementation "io.netty:netty-codec-haproxy:4.1.136.Final"
+        implementation "io.netty:netty-codec-http:4.1.136.Final"
+        implementation "io.netty:netty-codec-http2:4.1.136.Final"
+        implementation "io.netty:netty-codec-socks:4.1.136.Final"
+        implementation "io.netty:netty-common:4.1.136.Final"
+        implementation "io.netty:netty-handler:4.1.136.Final"
+        implementation "io.netty:netty-handler-proxy:4.1.136.Final"
+        implementation "io.netty:netty-resolver-dns:4.1.136.Final"
+    }
+
     compileOnly "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
 
