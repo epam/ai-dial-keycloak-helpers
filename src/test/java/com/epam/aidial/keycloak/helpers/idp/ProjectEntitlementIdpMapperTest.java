@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -63,7 +64,7 @@ public class ProjectEntitlementIdpMapperTest {
 
     private void stubSuccessfulFetch() {
         when(tokenExtractor.extractAccessToken("token-json")).thenReturn("access-token");
-        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString()))
+        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString(), anyInt(), anyInt()))
                 .thenReturn(List.of(new ProjectGroup("id-1", "Project EPM-AEM")));
     }
 
@@ -94,7 +95,7 @@ public class ProjectEntitlementIdpMapperTest {
 
     private void lastingFailureClears(GraphFetchException failure) {
         when(tokenExtractor.extractAccessToken("token-json")).thenReturn("access-token");
-        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString())).thenThrow(failure);
+        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString(), anyInt(), anyInt())).thenThrow(failure);
 
         mapper.updateBrokeredUser(null, null, user, mapperModel, context);
 
@@ -112,7 +113,7 @@ public class ProjectEntitlementIdpMapperTest {
 
         verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[]");
         verify(user).setSingleAttribute(eq(TIMESTAMP_ATTRIBUTE), anyString());
-        verify(graphProvider, never()).fetchProjectGroups(anyString(), anyString());
+        verify(graphProvider, never()).fetchProjectGroups(anyString(), anyString(), anyInt(), anyInt());
     }
 
     @Test
@@ -129,7 +130,7 @@ public class ProjectEntitlementIdpMapperTest {
     @Test
     public void invalidConventionRegexClearsEntitlementToEmptyList() {
         when(tokenExtractor.extractAccessToken("token-json")).thenReturn("access-token");
-        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString())).thenReturn(List.of());
+        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString(), anyInt(), anyInt())).thenReturn(List.of());
         when(mapperModel.getConfig()).thenReturn(Map.of(
                 "convention.regex", "^Project [unclosed", // PatternSyntaxException at resolution
                 "convention.prefix", "Project "));
@@ -158,7 +159,7 @@ public class ProjectEntitlementIdpMapperTest {
 
     private void temporaryFailureKeeps(GraphFetchException failure) {
         when(tokenExtractor.extractAccessToken("token-json")).thenReturn("access-token");
-        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString())).thenThrow(failure);
+        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString(), anyInt(), anyInt())).thenThrow(failure);
 
         mapper.updateBrokeredUser(null, null, user, mapperModel, context);
 

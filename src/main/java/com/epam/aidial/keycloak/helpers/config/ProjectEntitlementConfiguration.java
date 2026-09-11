@@ -25,6 +25,8 @@ public class ProjectEntitlementConfiguration {
     String claimName;
     String entitlementAttribute;
     long entitlementMaxAgeMinutes;
+    int graphConnectTimeoutMillis;
+    int graphReadTimeoutMillis;
 
     private static final String CONVENTION_REGEX = "convention.regex";
     private static final String CONVENTION_PREFIX = "convention.prefix";
@@ -33,6 +35,8 @@ public class ProjectEntitlementConfiguration {
     private static final String ENTITLEMENT_ATTRIBUTE = "entitlement.attribute";
     public static final String ENTITLEMENT_MAX_AGE = "entitlement.max-age";
     private static final String DEFAULT_ENTITLEMENT_MAX_AGE = "0";
+    public static final String GRAPH_CONNECT_TIMEOUT = "graph.connect.timeout";
+    public static final String GRAPH_READ_TIMEOUT = "graph.read.timeout";
 
     /**
      * The user attribute the fetch freshness timestamp is cached under (epoch-millis;
@@ -46,6 +50,10 @@ public class ProjectEntitlementConfiguration {
     private static final String DEFAULT_SELECTION_PARAM = "project";
     private static final String DEFAULT_CLAIM_NAME = "project";
     private static final String DEFAULT_ENTITLEMENT_ATTRIBUTE = "projectEntitlement";
+
+    /** Defaults mirror {@link com.epam.aidial.keycloak.helpers.provider.MsGraphProjectGroupsProvider}. */
+    private static final String DEFAULT_GRAPH_CONNECT_TIMEOUT = "5000";
+    private static final String DEFAULT_GRAPH_READ_TIMEOUT = "10000";
 
     /**
      * Builds configuration from an identity provider mapper model.
@@ -74,7 +82,9 @@ public class ProjectEntitlementConfiguration {
                 config.getOrDefault(SELECTION_PARAM, DEFAULT_SELECTION_PARAM),
                 config.getOrDefault(CLAIM_NAME, DEFAULT_CLAIM_NAME),
                 config.getOrDefault(ENTITLEMENT_ATTRIBUTE, DEFAULT_ENTITLEMENT_ATTRIBUTE),
-                parseMaxAgeMinutes(config.get(ENTITLEMENT_MAX_AGE))
+                parseMaxAgeMinutes(config.get(ENTITLEMENT_MAX_AGE)),
+                parseTimeoutMillis(config.get(GRAPH_CONNECT_TIMEOUT), DEFAULT_GRAPH_CONNECT_TIMEOUT),
+                parseTimeoutMillis(config.get(GRAPH_READ_TIMEOUT), DEFAULT_GRAPH_READ_TIMEOUT)
         );
     }
 
@@ -91,6 +101,22 @@ public class ProjectEntitlementConfiguration {
         } catch (NumberFormatException e) {
             log.warn("Invalid '{}' config value '{}' — treating as 0 (the freshness bound disabled)", ENTITLEMENT_MAX_AGE, value);
             return 0L;
+        }
+    }
+
+    /**
+     * A Graph HTTP timeout in milliseconds, leniently parsed — an unset or
+     * unparsible value means the given default. Never fails the mapper.
+     */
+    private static int parseTimeoutMillis(String value, String defaultValue) {
+        if (value == null || value.isEmpty()) {
+            return Integer.parseInt(defaultValue);
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            log.warn("Invalid Graph timeout config value '{}' — using the default {} ms", value, defaultValue);
+            return Integer.parseInt(defaultValue);
         }
     }
 
@@ -117,6 +143,10 @@ public class ProjectEntitlementConfiguration {
                 "Freshness bound for the cached entitlement, in minutes (protocol mapper): a cache older than this — "
                         + "or without a fetch timestamp — yields no claim; 0 = disabled. Set above the realm's SSO Session Max",
                 DEFAULT_ENTITLEMENT_MAX_AGE));
+        properties.add(textProperty(GRAPH_CONNECT_TIMEOUT, "Graph Connect Timeout (ms)",
+                "Connect timeout for the Microsoft Graph calls, in milliseconds (fetch mapper)", DEFAULT_GRAPH_CONNECT_TIMEOUT));
+        properties.add(textProperty(GRAPH_READ_TIMEOUT, "Graph Read Timeout (ms)",
+                "Read timeout for the Microsoft Graph calls, in milliseconds (fetch mapper)", DEFAULT_GRAPH_READ_TIMEOUT));
         return properties;
     }
 

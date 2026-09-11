@@ -143,7 +143,8 @@ public class ProjectEntitlementIdpMapper extends AbstractIdentityProviderMapper 
         }
 
         try {
-            List<ProjectGroup> groups = graphProvider.fetchProjectGroups(accessToken, config.getConventionPrefix());
+            List<ProjectGroup> groups = graphProvider.fetchProjectGroups(accessToken, config.getConventionPrefix(),
+                    config.getGraphConnectTimeoutMillis(), config.getGraphReadTimeoutMillis());
             ProjectEntitlement entitlement = ProjectEntitlement.fromGroups(
                     groups, config.getConventionRegex(), config.getConventionPrefix());
 
