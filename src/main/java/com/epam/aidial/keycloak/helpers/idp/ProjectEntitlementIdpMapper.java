@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.keycloak.broker.provider.AbstractIdentityProviderMapper;
 import org.keycloak.broker.provider.BrokeredIdentityContext;
 import org.keycloak.models.IdentityProviderMapperModel;
+import org.keycloak.models.IdentityProviderSyncMode;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
@@ -65,6 +66,18 @@ public class ProjectEntitlementIdpMapper extends AbstractIdentityProviderMapper 
     @Override
     public String getId() {
         return PROVIDER_ID;
+    }
+
+    /**
+     * IMPORT is excluded (the 2026-09-11 amendment): an effectively-IMPORT setup
+     * would freeze the cache after the first login, silently. Keycloak's own
+     * brokered-login delegate warns at login for such setups; the protocol
+     * mapper's sync guard is the enforcement — it refuses to mint from a frozen
+     * entitlement (fail closed at the mint).
+     */
+    @Override
+    public boolean supportsSyncMode(IdentityProviderSyncMode syncMode) {
+        return syncMode == IdentityProviderSyncMode.FORCE || syncMode == IdentityProviderSyncMode.LEGACY;
     }
 
     @Override

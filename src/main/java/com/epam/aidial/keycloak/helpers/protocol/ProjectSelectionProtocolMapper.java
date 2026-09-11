@@ -1,12 +1,17 @@
 package com.epam.aidial.keycloak.helpers.protocol;
 
 import com.epam.aidial.keycloak.helpers.config.ProjectEntitlementConfiguration;
+import com.epam.aidial.keycloak.helpers.idp.ProjectEntitlementIdpMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.broker.provider.IdentityProviderMapperSyncModeDelegate;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.ClientSessionContext;
+import org.keycloak.models.IdentityProviderMapperModel;
+import org.keycloak.models.IdentityProviderModel;
+import org.keycloak.models.IdentityProviderSyncMode;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
@@ -106,6 +111,7 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
         }
 
         ProjectEntitlementConfiguration config = ProjectEntitlementConfiguration.fromModel(mappingModel);
+        RealmModel realm = realmOf(keycloakSession);
 
         // Attribute-premise guard (the 2026-09-11 review hardening): the cached
         // entitlement is a plain user attribute used as the premise of an
@@ -113,7 +119,15 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
         // Profile declaration), and a broken premise fails CLOSED here: no
         // claim, loudly. Detection, not prevention — no token mapper can defend
         // a realm's attribute-write surface.
-        if (!attributePremiseHolds(keycloakSession, config.getEntitlementAttribute())) {
+        if (!attributePremiseHolds(realm, keycloakSession, config.getEntitlementAttribute())) {
+            return;
+        }
+
+        // Sync guard (the 2026-09-11 review hardening): the entitlement refresh
+        // runs only under effective sync mode FORCE or LEGACY — a frozen (IMPORT)
+        // cache must never mint silently, and a missing feeder never refreshes at
+        // all. Both fail CLOSED here.
+        if (!syncPremiseHolds(realm)) {
             return;
         }
 
@@ -159,8 +173,7 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
      * cannot be verified (no realm/session scope) it fails closed. Returns
      * {@code true} only when the premise holds.
      */
-    private boolean attributePremiseHolds(KeycloakSession keycloakSession, String attribute) {
-        RealmModel realm = realmOf(keycloakSession);
+    private boolean attributePremiseHolds(RealmModel realm, KeycloakSession keycloakSession, String attribute) {
         if (realm == null) {
             log.error("No realm scope — the entitlement attribute '{}' premise cannot be verified — emitting no claim (fail closed)", attribute);
             return false;
@@ -179,6 +192,55 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
             log.error("Entitlement attribute '{}' is user-editable in the realm's User Profile (edit: {}) — emitting no claim (fail closed). "
                     + "Restrict the declaration to admin-only edit — a user-writable entitlement attribute is an enforcement-premise defect", attribute, edit);
             return false;
+        }
+        return true;
+    }
+
+    /**
+     * The two mappers (the entitlement fetch mapper and this one) are a matched
+     * set: the realm must hold at least one entitlement fetch-mapper instance —
+     * the feeder the cached attribute would never refresh without — and every
+     * one of them must sit at an <b>effective</b> sync mode of FORCE or LEGACY.
+     * The effective mode is computed with Keycloak's own
+     * {@code IdentityProviderMapperSyncModeDelegate.combineIdpAndMapperSyncMode}
+     * — the exact resolution the brokered-login path performs (zero drift): a
+     * mapper on INHERIT takes its federation's mode, and an unset federation
+     * mode resolves to LEGACY (which refreshes every login — benign; the frozen
+     * trap is an effective IMPORT). Resolves the realm configuration at the
+     * point of use; there is no brokered context at mint to read instead.
+     * Returns {@code true} only when the premise holds.
+     */
+    private boolean syncPremiseHolds(RealmModel realm) {
+        if (realm == null) {
+            log.error("No realm scope — the entitlement fetch-mapper premise cannot be verified — emitting no claim (fail closed)");
+            return false;
+        }
+        List<IdentityProviderMapperModel> feeders = realm.getIdentityProviderMappersStream()
+                .filter(mapperModel -> ProjectEntitlementIdpMapper.PROVIDER_ID.equals(mapperModel.getIdentityProviderMapper()))
+                .toList();
+        if (feeders.isEmpty()) {
+            log.error("No entitlement fetch-mapper instance is configured in the realm — the entitlement attribute has no feeder and would never refresh — emitting no claim (fail closed). "
+                    + "Add the '{}' IdP mapper to the broker's mappers", ProjectEntitlementIdpMapper.PROVIDER_ID);
+            return false;
+        }
+        for (IdentityProviderMapperModel feeder : feeders) {
+            IdentityProviderModel idp = realm.getIdentityProviderByAlias(feeder.getIdentityProviderAlias());
+            if (idp == null) {
+                log.error("Entitlement fetch mapper '{}' references the IdP alias '{}' which does not exist — emitting no claim (fail closed)",
+                        feeder.getName(), feeder.getIdentityProviderAlias());
+                return false;
+            }
+            IdentityProviderSyncMode idpMode = idp.getSyncMode() == null
+                    ? IdentityProviderSyncMode.LEGACY  // the login path's own null rule (verified against the delegate)
+                    : idp.getSyncMode();
+            IdentityProviderSyncMode effective = IdentityProviderMapperSyncModeDelegate
+                    .combineIdpAndMapperSyncMode(idpMode, feeder.getSyncMode());
+            if (effective == IdentityProviderSyncMode.IMPORT) {
+                log.error("Entitlement fetch mapper '{}' on IdP '{}' is effectively at sync mode IMPORT — the entitlement cache would freeze after the first login — emitting no claim (fail closed). "
+                        + "Configure the mapper at sync mode FORCE (or INHERIT over a FORCE or LEGACY federation)",
+                        feeder.getName(), feeder.getIdentityProviderAlias());
+                return false;
+            }
         }
         return true;
     }

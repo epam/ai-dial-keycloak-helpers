@@ -175,4 +175,13 @@ public class ProjectEntitlementIdpMapperTest {
         verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[\"EPM-AEM\"]");
         verify(user).setSingleAttribute(eq(TIMESTAMP_ATTRIBUTE), anyString());
     }
+
+    @Test
+    public void syncModeDeclarationSupportsForceAndLegacyOnly() {
+        // IMPORT excluded: a frozen cache must never be silent — Keycloak's
+        // delegate warns at login, the protocol mapper's sync guard enforces.
+        org.junit.Assert.assertTrue(mapper.supportsSyncMode(org.keycloak.models.IdentityProviderSyncMode.FORCE));
+        org.junit.Assert.assertTrue(mapper.supportsSyncMode(org.keycloak.models.IdentityProviderSyncMode.LEGACY));
+        org.junit.Assert.assertFalse(mapper.supportsSyncMode(org.keycloak.models.IdentityProviderSyncMode.IMPORT));
+    }
 }

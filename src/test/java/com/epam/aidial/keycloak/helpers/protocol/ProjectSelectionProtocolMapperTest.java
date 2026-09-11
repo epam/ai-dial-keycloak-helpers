@@ -5,6 +5,10 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import org.junit.Test;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.ClientSessionContext;
+import org.keycloak.models.IdentityProviderMapperModel;
+import org.keycloak.models.IdentityProviderMapperSyncMode;
+import org.keycloak.models.IdentityProviderModel;
+import org.keycloak.models.IdentityProviderSyncMode;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.ProtocolMapperModel;
@@ -19,6 +23,7 @@ import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.userprofile.UserProfileProvider;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -98,9 +103,20 @@ public class ProjectSelectionProtocolMapperTest {
     }
 
     private KeycloakSession sessionWith(MultivaluedMap<String, String> formParams, UPConfig profileConfig) {
+        // The sync guard's happy path: one feeder mapper at FORCE over a FORCE
+        // federation (the rig's configuration).
+        return sessionWith(formParams, profileConfig,
+                List.of(feederAt(IdentityProviderMapperSyncMode.FORCE)), Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE)));
+    }
+
+    private KeycloakSession sessionWith(MultivaluedMap<String, String> formParams, UPConfig profileConfig,
+                                        List<IdentityProviderMapperModel> feeders, Map<String, IdentityProviderModel> idpsByAlias) {
         HttpRequest request = mock(HttpRequest.class);
         when(request.getDecodedFormParameters()).thenReturn(formParams);
         RealmModel realm = mock(RealmModel.class);
+        when(realm.getIdentityProviderMappersStream()).thenReturn(feeders.stream());
+        when(realm.getIdentityProviderByAlias(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(invocation -> idpsByAlias.get(invocation.getArgument(0, String.class)));
         KeycloakContext context = mock(KeycloakContext.class);
         when(context.getHttpRequest()).thenReturn(request);
         when(context.getRealm()).thenReturn(realm);
@@ -126,6 +142,25 @@ public class ProjectSelectionProtocolMapperTest {
             params.add("project", value);
         }
         return params;
+    }
+
+    /** A realm IdP-mapper instance of the entitlement fetch mapper at the given mode. */
+    private static IdentityProviderMapperModel feederAt(IdentityProviderMapperSyncMode syncMode) {
+        IdentityProviderMapperModel feeder = new IdentityProviderMapperModel();
+        feeder.setName("entitlement-feeder");
+        feeder.setIdentityProviderAlias("entra");
+        feeder.setIdentityProviderMapper(com.epam.aidial.keycloak.helpers.idp.ProjectEntitlementIdpMapper.PROVIDER_ID);
+        feeder.setConfig(new HashMap<>()); // setSyncMode writes through the config map
+        feeder.setSyncMode(syncMode);
+        return feeder;
+    }
+
+    /** A federation instance at the given sync mode (null = unset — the console can leave it empty). */
+    private static IdentityProviderModel idpAt(IdentityProviderSyncMode syncMode) {
+        IdentityProviderModel idp = new IdentityProviderModel();
+        idp.setAlias("entra");
+        idp.setSyncMode(syncMode);
+        return idp;
     }
 
     @Test
@@ -333,5 +368,103 @@ public class ProjectSelectionProtocolMapperTest {
                 sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
 
         assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+    }
+
+    // ---- the sync guard: the realm must hold a healthy fetch-mapper feeder ----
+
+    @Test
+    public void feederAtLegacySyncModeEmits() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                        List.of(feederAt(IdentityProviderMapperSyncMode.LEGACY)),
+                        Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
+                mock(ClientSessionContext.class));
+
+        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+    }
+
+    @Test
+    public void inheritOverForceFederationEmits() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                        List.of(feederAt(IdentityProviderMapperSyncMode.INHERIT)),
+                        Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
+                mock(ClientSessionContext.class));
+
+        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+    }
+
+    @Test
+    public void inheritOverUnsetFederationResolvesLegacyAndEmits() {
+        AccessToken token = new AccessToken();
+
+        // The verified delegate rule: an UNSET federation mode resolves to LEGACY,
+        // which refreshes every login — benign, emits.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                        List.of(feederAt(IdentityProviderMapperSyncMode.INHERIT)),
+                        Map.of("entra", idpAt(null))),
+                mock(ClientSessionContext.class));
+
+        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+    }
+
+    @Test
+    public void inheritOverImportFederationEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // The frozen trap: the console writes IMPORT on new federations; INHERIT over
+        // it freezes the cache after the first login — no claim, loudly.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                        List.of(feederAt(IdentityProviderMapperSyncMode.INHERIT)),
+                        Map.of("entra", idpAt(IdentityProviderSyncMode.IMPORT))),
+                mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void feederAtImportSyncModeEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                        List.of(feederAt(IdentityProviderMapperSyncMode.IMPORT)),
+                        Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
+                mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void zeroFeederInstancesEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // The matched set's missing half: without a feeder the attribute would
+        // never refresh — no claim, loudly.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                        List.of(), Map.of()),
+                mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void feederReferencingMissingIdpEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                        List.of(feederAt(IdentityProviderMapperSyncMode.FORCE)),
+                        Map.of()), // no "entra" federation — a dangling feeder alias
+                mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
     }
 }
