@@ -47,7 +47,7 @@ public class MsGraphProjectGroupsProvider {
      *                          semantics (keep previous entitlement, never block login)
      */
     public List<ProjectGroup> fetchProjectGroups(String accessToken, String prefix) {
-        String filter = "startswith(displayName,'" + escapeOData(prefix) + "')";
+        String filter = "startswith(displayName,'" + escapeOdata(prefix) + "')";
         String url = String.format(MEMBER_OF_URL, GRAPH_API_BASE, urlEncode(filter));
 
         List<ProjectGroup> groups = new ArrayList<>();
@@ -86,7 +86,7 @@ public class MsGraphProjectGroupsProvider {
         }
     }
 
-    private String escapeOData(String value) {
+    private String escapeOdata(String value) {
         return value.replace("'", "''");
     }
 
