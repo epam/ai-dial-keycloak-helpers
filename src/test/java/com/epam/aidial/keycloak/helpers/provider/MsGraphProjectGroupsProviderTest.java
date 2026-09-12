@@ -77,14 +77,14 @@ public class MsGraphProjectGroupsProviderTest {
 
     @Test
     public void fetchesAndParsesOnePage() {
-        respondWith("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"Project EPM-AEM\"},{\"id\":\"id-2\",\"displayName\":null}]}");
+        respondWith("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"project-abc-42\"},{\"id\":\"id-2\",\"displayName\":null}]}");
 
-        List<ProjectGroup> groups = provider().fetchProjectGroups("token", "Project ");
+        List<ProjectGroup> groups = provider().fetchProjectGroups("token", "project-");
 
         // The provider returns raw Graph groups — the convention parsing lives in ProjectEntitlement.
         assertEquals(2, groups.size());
         assertEquals("id-1", groups.get(0).getId());
-        assertEquals("Project EPM-AEM", groups.get(0).getDisplayName());
+        assertEquals("project-abc-42", groups.get(0).getDisplayName());
         assertEquals("id-2", groups.get(1).getId());
         assertNull(groups.get(1).getDisplayName());
     }
@@ -98,10 +98,10 @@ public class MsGraphProjectGroupsProviderTest {
             String path = exchange.getRequestURI().getPath();
             byte[] body;
             if (path.endsWith("/page2")) {
-                body = "{\"value\":[{\"id\":\"id-2\",\"displayName\":\"Project ABC-42\"}]}".getBytes(StandardCharsets.UTF_8);
+                body = "{\"value\":[{\"id\":\"id-2\",\"displayName\":\"project-xyz-9\"}]}".getBytes(StandardCharsets.UTF_8);
             } else {
                 firstQuery[0] = exchange.getRequestURI().getQuery();
-                body = ("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"Project EPM-AEM\"}],"
+                body = ("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"project-abc-42\"}],"
                         + "\"@odata.nextLink\":\"" + base + "/me/memberOf/page2?$skiptoken=abc\"}").getBytes(StandardCharsets.UTF_8);
             }
             exchange.getResponseHeaders().add("Content-Type", "application/json");
@@ -111,7 +111,7 @@ public class MsGraphProjectGroupsProviderTest {
             }
         });
 
-        List<ProjectGroup> groups = provider().fetchProjectGroups("token", "Project ");
+        List<ProjectGroup> groups = provider().fetchProjectGroups("token", "project-");
 
         assertEquals(2, requests.get()); // the follow happened
         assertEquals(2, groups.size());
@@ -124,7 +124,7 @@ public class MsGraphProjectGroupsProviderTest {
         // never end; the cap must stop it as a temporary failure (statusCode 0).
         server.createContext("/v1.0/me/memberOf", exchange -> {
             requests.incrementAndGet();
-            byte[] body = ("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"Project EPM-AEM\"}],"
+            byte[] body = ("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"project-abc-42\"}],"
                     + "\"@odata.nextLink\":\"" + base + "/me/memberOf/next?$skiptoken=abc\"}").getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, body.length);
@@ -134,7 +134,7 @@ public class MsGraphProjectGroupsProviderTest {
         });
 
         try {
-            provider().fetchProjectGroups("token", "Project ");
+            provider().fetchProjectGroups("token", "project-");
             throw new AssertionError("expected the page cap to fail the fetch");
         } catch (GraphFetchException e) {
             assertEquals(0, e.getStatusCode());
@@ -146,11 +146,11 @@ public class MsGraphProjectGroupsProviderTest {
     @Test
     public void foreignHostNextLinkIsRefusedNotFollowed() {
         // The link points off the allowed host — refused outright, no second request.
-        respondWith("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"Project EPM-AEM\"}],"
+        respondWith("{\"value\":[{\"id\":\"id-1\",\"displayName\":\"project-abc-42\"}],"
                 + "\"@odata.nextLink\":\"https://evil.example.com/v1.0/me/memberOf?$skiptoken=abc\"}");
 
         try {
-            provider().fetchProjectGroups("token", "Project ");
+            provider().fetchProjectGroups("token", "project-");
             throw new AssertionError("expected a foreign-host nextLink to be refused");
         } catch (GraphFetchException e) {
             assertFalse(e.isLasting()); // temporary
@@ -164,7 +164,7 @@ public class MsGraphProjectGroupsProviderTest {
 
         int tinyReadTimeout = 300;
         try {
-            provider().fetchProjectGroups("token", "Project ",
+            provider().fetchProjectGroups("token", "project-",
                     MsGraphProjectGroupsProvider.DEFAULT_CONNECT_TIMEOUT_MILLIS, tinyReadTimeout);
             throw new AssertionError("expected the read timeout to fire");
         } catch (GraphFetchException e) {
@@ -178,7 +178,7 @@ public class MsGraphProjectGroupsProviderTest {
         respondWith("{\"error\":{\"code\":\"Authorization_RequestDenied\"}}", 403);
 
         try {
-            provider().fetchProjectGroups("token", "Project ");
+            provider().fetchProjectGroups("token", "project-");
             throw new AssertionError("expected HTTP 403 to raise the typed exception");
         } catch (GraphFetchException e) {
             assertEquals(403, e.getStatusCode());

@@ -15,19 +15,19 @@ import static org.junit.Assert.assertEquals;
  */
 public class ProjectEntitlementTest {
 
-    private static final String REGEX = "^Project [A-Za-z0-9]+-[A-Za-z0-9]+$";
-    private static final String PREFIX = "Project ";
+    private static final String REGEX = "^project-[A-Za-z0-9]+-[A-Za-z0-9]+$";
+    private static final String PREFIX = "project-";
 
     @Test
     public void allNamedBatchYieldsRegexGatedParsedIds() {
         List<ProjectGroup> groups = List.of(
-                new ProjectGroup("id-1", "Project EPM-AEM"),
-                new ProjectGroup("id-2", "Project ABC-42"),
-                new ProjectGroup("id-3", "Project Templates"));
+                new ProjectGroup("id-1", "project-abc-42"),
+                new ProjectGroup("id-2", "project-xyz-9"),
+                new ProjectGroup("id-3", "project-templates"));
 
         ProjectEntitlement entitlement = ProjectEntitlement.fromGroups(groups, REGEX, PREFIX);
 
-        assertEquals(List.of("ABC-42", "EPM-AEM"), entitlement.getValues());
+        assertEquals(List.of("abc-42", "xyz-9"), entitlement.getValues());
     }
 
     @Test
@@ -45,22 +45,22 @@ public class ProjectEntitlementTest {
         // object IDs where not; nothing list-wide degrades.
         List<ProjectGroup> groups = List.of(
                 new ProjectGroup("id-1", null),
-                new ProjectGroup("id-2", "Project EPM-AEM"));
+                new ProjectGroup("id-2", "project-abc-42"));
 
         ProjectEntitlement entitlement = ProjectEntitlement.fromGroups(groups, REGEX, PREFIX);
 
-        assertEquals(List.of("EPM-AEM", "id-1"), entitlement.getValues());
+        assertEquals(List.of("abc-42", "id-1"), entitlement.getValues());
     }
 
     @Test
     public void nonConformingVisibleNameExcludedInNamedBatch() {
         List<ProjectGroup> groups = List.of(
-                new ProjectGroup("id-1", "Project Managers"),
-                new ProjectGroup("id-2", "Project EPM-AEM"));
+                new ProjectGroup("id-1", "project-managers"),
+                new ProjectGroup("id-2", "project-abc-42"));
 
         ProjectEntitlement entitlement = ProjectEntitlement.fromGroups(groups, REGEX, PREFIX);
 
-        assertEquals(List.of("EPM-AEM"), entitlement.getValues());
+        assertEquals(List.of("abc-42"), entitlement.getValues());
     }
 
     @Test
@@ -71,7 +71,7 @@ public class ProjectEntitlementTest {
         // regex-gates every visible name in every batch shape.
         List<ProjectGroup> groups = List.of(
                 new ProjectGroup("id-1", null),
-                new ProjectGroup("id-2", "Project Managers"));
+                new ProjectGroup("id-2", "project-managers"));
 
         ProjectEntitlement entitlement = ProjectEntitlement.fromGroups(groups, REGEX, PREFIX);
 
@@ -84,23 +84,23 @@ public class ProjectEntitlementTest {
         // brokered login — the entry is skipped loudly, the rest resolves.
         List<ProjectGroup> groups = List.of(
                 new ProjectGroup(null, null),
-                new ProjectGroup("id-2", "Project EPM-AEM"));
+                new ProjectGroup("id-2", "project-abc-42"));
 
         ProjectEntitlement entitlement = ProjectEntitlement.fromGroups(groups, REGEX, PREFIX);
 
-        assertEquals(List.of("EPM-AEM"), entitlement.getValues());
+        assertEquals(List.of("abc-42"), entitlement.getValues());
     }
 
     @Test
     public void valuesAreSortedAndDeduplicated() {
         List<ProjectGroup> groups = List.of(
-                new ProjectGroup("id-1", "Project B-2"),
-                new ProjectGroup("id-2", "Project A-1"),
-                new ProjectGroup("id-3", "Project A-1"));
+                new ProjectGroup("id-1", "project-b-2"),
+                new ProjectGroup("id-2", "project-a-1"),
+                new ProjectGroup("id-3", "project-a-1"));
 
         ProjectEntitlement entitlement = ProjectEntitlement.fromGroups(groups, REGEX, PREFIX);
 
-        assertEquals(List.of("A-1", "B-2"), entitlement.getValues());
+        assertEquals(List.of("a-1", "b-2"), entitlement.getValues());
     }
 
     @Test

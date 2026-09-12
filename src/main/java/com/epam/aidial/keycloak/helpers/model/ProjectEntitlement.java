@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>a visible {@code displayName} that <b>conforms</b> to the convention regex →
  *       the parsed project id (display name minus the convention prefix);</li>
- *   <li>a visible <b>non-conforming</b> name (e.g. a {@code Project Managers} group) →
+ *   <li>a visible <b>non-conforming</b> name (e.g. a {@code project-managers} group) →
  *       <b>excluded</b> — the regex gates every visible name in every case;</li>
  *   <li>no visible name ({@code displayName: null} — no delegated
  *       {@code GroupMember.Read.All}; Graph's documented "limited information"

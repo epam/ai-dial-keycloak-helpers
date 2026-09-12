@@ -45,8 +45,6 @@ public class ProjectEntitlementConfiguration {
      */
     public static final String ENTITLEMENT_TIMESTAMP_ATTRIBUTE = "projectEntitlementAt";
 
-    private static final String DEFAULT_CONVENTION_REGEX = "^Project [A-Za-z0-9]+-[A-Za-z0-9]+$";
-    private static final String DEFAULT_CONVENTION_PREFIX = "Project ";
     private static final String DEFAULT_SELECTION_PARAM = "project";
     private static final String DEFAULT_CLAIM_NAME = "project";
     private static final String DEFAULT_ENTITLEMENT_ATTRIBUTE = "projectEntitlement";
@@ -77,8 +75,8 @@ public class ProjectEntitlementConfiguration {
 
     private static ProjectEntitlementConfiguration fromConfig(java.util.Map<String, String> config) {
         return new ProjectEntitlementConfiguration(
-                config.getOrDefault(CONVENTION_REGEX, DEFAULT_CONVENTION_REGEX),
-                config.getOrDefault(CONVENTION_PREFIX, DEFAULT_CONVENTION_PREFIX),
+                config.get(CONVENTION_REGEX),
+                config.get(CONVENTION_PREFIX),
                 config.getOrDefault(SELECTION_PARAM, DEFAULT_SELECTION_PARAM),
                 config.getOrDefault(CLAIM_NAME, DEFAULT_CLAIM_NAME),
                 config.getOrDefault(ENTITLEMENT_ATTRIBUTE, DEFAULT_ENTITLEMENT_ATTRIBUTE),
@@ -86,6 +84,16 @@ public class ProjectEntitlementConfiguration {
                 parseTimeoutMillis(GRAPH_CONNECT_TIMEOUT, config.get(GRAPH_CONNECT_TIMEOUT), DEFAULT_GRAPH_CONNECT_TIMEOUT),
                 parseTimeoutMillis(GRAPH_READ_TIMEOUT, config.get(GRAPH_READ_TIMEOUT), DEFAULT_GRAPH_READ_TIMEOUT)
         );
+    }
+
+    /**
+     * Whether the naming convention is fully configured. The convention is realm
+     * policy, never a jar default: an unset regex or prefix is a configuration
+     * defect — the fetch fails closed, the same lasting class as an invalid regex.
+     */
+    public boolean conventionConfigured() {
+        return conventionRegex != null && !conventionRegex.isBlank()
+                && conventionPrefix != null && !conventionPrefix.isBlank();
     }
 
     /**
@@ -140,11 +148,12 @@ public class ProjectEntitlementConfiguration {
     public static List<ProviderConfigProperty> getConfigProperties() {
         List<ProviderConfigProperty> properties = new ArrayList<>();
         properties.add(textProperty(CONVENTION_REGEX, "Project Group Name Regex",
-                "Regular expression a project group's display name must match to ever yield an entitlement value "
-                        + "(D-019 fail-loud on unrecognized names)", DEFAULT_CONVENTION_REGEX));
+                "Required — no default (the naming convention is realm policy, not the jar's): the regular expression "
+                        + "a project group's display name must match to ever yield an entitlement value "
+                        + "(D-019 fail-loud on unrecognized names), e.g. ^project-[A-Za-z0-9]+-[A-Za-z0-9]+$", null));
         properties.add(textProperty(CONVENTION_PREFIX, "Project Id Prefix",
-                "Prefix stripped from a conforming group display name to obtain the project id (the per-group fallback)",
-                DEFAULT_CONVENTION_PREFIX));
+                "Required — no default: the prefix stripped from a conforming group display name to obtain the project id, "
+                        + "sent as the Graph startswith filter, e.g. project-", null));
         properties.add(textProperty(SELECTION_PARAM, "Selection Parameter",
                 "Request parameter carrying the session's project selection (authorize URL + the exchange/refresh POST form bodies)", DEFAULT_SELECTION_PARAM));
         properties.add(textProperty(CLAIM_NAME, "Claim Name",

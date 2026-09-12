@@ -53,8 +53,8 @@ public class ProjectEntitlementIdpMapperTest {
         when(user.getUsername()).thenReturn("user-a");
 
         Map<String, String> config = new HashMap<>();
-        config.put("convention.regex", "^Project [A-Za-z0-9]+-[A-Za-z0-9]+$");
-        config.put("convention.prefix", "Project ");
+        config.put("convention.regex", "^project-[A-Za-z0-9]+-[A-Za-z0-9]+$");
+        config.put("convention.prefix", "project-");
         mapperModel = mock(IdentityProviderMapperModel.class);
         when(mapperModel.getConfig()).thenReturn(config);
 
@@ -65,7 +65,7 @@ public class ProjectEntitlementIdpMapperTest {
     private void stubSuccessfulFetch() {
         when(tokenExtractor.extractAccessToken("token-json")).thenReturn("access-token");
         when(graphProvider.fetchProjectGroups(eq("access-token"), anyString(), anyInt(), anyInt()))
-                .thenReturn(List.of(new ProjectGroup("id-1", "Project EPM-AEM")));
+                .thenReturn(List.of(new ProjectGroup("id-1", "project-abc-42")));
     }
 
     @Test
@@ -74,7 +74,7 @@ public class ProjectEntitlementIdpMapperTest {
 
         mapper.updateBrokeredUser(null, null, user, mapperModel, context);
 
-        verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[\"EPM-AEM\"]");
+        verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[\"abc-42\"]");
         verify(user).setSingleAttribute(eq(TIMESTAMP_ATTRIBUTE), anyString());
     }
 
@@ -132,13 +132,39 @@ public class ProjectEntitlementIdpMapperTest {
         when(tokenExtractor.extractAccessToken("token-json")).thenReturn("access-token");
         when(graphProvider.fetchProjectGroups(eq("access-token"), anyString(), anyInt(), anyInt())).thenReturn(List.of());
         when(mapperModel.getConfig()).thenReturn(Map.of(
-                "convention.regex", "^Project [unclosed", // PatternSyntaxException at resolution
-                "convention.prefix", "Project "));
+                "convention.regex", "^project-[unclosed", // PatternSyntaxException at resolution
+                "convention.prefix", "project-"));
 
         mapper.updateBrokeredUser(null, null, user, mapperModel, context);
 
         verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[]");
         verify(user).setSingleAttribute(eq(TIMESTAMP_ATTRIBUTE), anyString());
+    }
+
+    @Test
+    public void unconfiguredConventionRegexClearsEntitlementToEmptyList() {
+        // The convention is realm policy with no code default — an unset regex is a
+        // lasting configuration defect, the same class as an invalid regex.
+        when(mapperModel.getConfig()).thenReturn(Map.of(
+                "convention.prefix", "project-"));
+
+        mapper.updateBrokeredUser(null, null, user, mapperModel, context);
+
+        verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[]");
+        verify(user).setSingleAttribute(eq(TIMESTAMP_ATTRIBUTE), anyString());
+        verify(graphProvider, never()).fetchProjectGroups(anyString(), anyString(), anyInt(), anyInt());
+    }
+
+    @Test
+    public void unconfiguredConventionPrefixClearsEntitlementToEmptyList() {
+        when(mapperModel.getConfig()).thenReturn(Map.of(
+                "convention.regex", "^project-[A-Za-z0-9]+-[A-Za-z0-9]+$"));
+
+        mapper.updateBrokeredUser(null, null, user, mapperModel, context);
+
+        verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[]");
+        verify(user).setSingleAttribute(eq(TIMESTAMP_ATTRIBUTE), anyString());
+        verify(graphProvider, never()).fetchProjectGroups(anyString(), anyString(), anyInt(), anyInt());
     }
 
     @Test
@@ -173,7 +199,7 @@ public class ProjectEntitlementIdpMapperTest {
 
         mapper.importNewUser(null, null, user, mapperModel, context);
 
-        verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[\"EPM-AEM\"]");
+        verify(user).setSingleAttribute(ENTITLEMENT_ATTRIBUTE, "[\"abc-42\"]");
         verify(user).setSingleAttribute(eq(TIMESTAMP_ATTRIBUTE), anyString());
     }
 
@@ -191,8 +217,8 @@ public class ProjectEntitlementIdpMapperTest {
         // Zero reads as an INFINITE timeout and negative throws on
         // HttpURLConnection — both clamp to the documented defaults, the fetch proceeds.
         when(mapperModel.getConfig()).thenReturn(Map.of(
-                "convention.regex", "^Project [A-Za-z0-9]+-[A-Za-z0-9]+$",
-                "convention.prefix", "Project ",
+                "convention.regex", "^project-[A-Za-z0-9]+-[A-Za-z0-9]+$",
+                "convention.prefix", "project-",
                 "graph.connect.timeout", "-5",
                 "graph.read.timeout", "0"));
         stubSuccessfulFetch();

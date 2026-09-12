@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
  */
 public class ProjectSelectionProtocolMapperTest {
 
-    private static final String ENTITLED = "[\"EPM-AEM\",\"ABC-42\"]";
+    private static final String ENTITLED = "[\"abc-42\",\"xyz-9\"]";
     private static final String ENTITLEMENT_ATTRIBUTE = "projectEntitlement";
     private static final String TIMESTAMP_ATTRIBUTE = "projectEntitlementAt";
 
@@ -171,9 +171,9 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
-        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
     }
 
     @Test
@@ -203,7 +203,7 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(null),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -213,7 +213,7 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement("not-json"),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -248,7 +248,7 @@ public class ProjectSelectionProtocolMapperTest {
         IDToken idToken = new IDToken();
 
         mapper.setClaim(idToken, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
         assertFalse(idToken.getOtherClaims().containsKey("project"));
     }
@@ -258,11 +258,11 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
         Object claim = token.getOtherClaims().get("project");
         assertTrue(claim instanceof String);
-        assertEquals("EPM-AEM", claim);
+        assertEquals("abc-42", claim);
     }
 
     @Test
@@ -273,7 +273,7 @@ public class ProjectSelectionProtocolMapperTest {
         // User Profile declaration is user-writable when unmanaged attributes
         // are enabled — the premise of the mint decision is broken → no claim.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), new UPConfig()), mock(ClientSessionContext.class));
+                sessionWith(selectionParam("abc-42"), new UPConfig()), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -291,7 +291,7 @@ public class ProjectSelectionProtocolMapperTest {
                 new UPAttributePermissions(Set.of(), Set.of("admin"))));
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), userEditable), mock(ClientSessionContext.class));
+                sessionWith(selectionParam("abc-42"), userEditable), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -310,7 +310,7 @@ public class ProjectSelectionProtocolMapperTest {
                 new UPAttributePermissions(Set.of(), Set.of("user"))));
 
         mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, Long.toString(System.currentTimeMillis())),
-                sessionWith(selectionParam("EPM-AEM"), userEditableTimestamp), mock(ClientSessionContext.class));
+                sessionWith(selectionParam("abc-42"), userEditableTimestamp), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -326,7 +326,7 @@ public class ProjectSelectionProtocolMapperTest {
                 new UPAttributePermissions(Set.of(), Set.of("admin"))));
 
         mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, Long.toString(System.currentTimeMillis())),
-                sessionWith(selectionParam("EPM-AEM"), entitlementOnly), mock(ClientSessionContext.class));
+                sessionWith(selectionParam("abc-42"), entitlementOnly), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -342,7 +342,7 @@ public class ProjectSelectionProtocolMapperTest {
                 new UPAttributePermissions(Set.of(), null)));
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), noEditKey), mock(ClientSessionContext.class));
+                sessionWith(selectionParam("abc-42"), noEditKey), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -357,7 +357,7 @@ public class ProjectSelectionProtocolMapperTest {
         corrupt.getConfig().put("syncMode", "GARBAGE");
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                sessionWith(selectionParam("abc-42"), adminOnlyProfile(),
                         List.of(corrupt), Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
                 mock(ClientSessionContext.class));
 
@@ -372,7 +372,7 @@ public class ProjectSelectionProtocolMapperTest {
         when(nullConfig.getConfig()).thenReturn(null);
 
         mapper.setClaim(token, nullConfig, userSessionWithEntitlement(ENTITLED),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -384,9 +384,9 @@ public class ProjectSelectionProtocolMapperTest {
         // The premise the guard requires — the properly declared admin-only
         // attribute (the reference realm policy) — must not change the emit path.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
-        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
     }
 
     @Test
@@ -395,9 +395,9 @@ public class ProjectSelectionProtocolMapperTest {
         String fresh = Long.toString(System.currentTimeMillis() - 60_000L); // 1 min old
 
         mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, fresh),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
-        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
     }
 
     @Test
@@ -406,7 +406,7 @@ public class ProjectSelectionProtocolMapperTest {
         String stale = Long.toString(System.currentTimeMillis() - 10 * 60_000L); // 10 min old, bound 5
 
         mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, stale),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -418,7 +418,7 @@ public class ProjectSelectionProtocolMapperTest {
         // Fail closed: with the bound enabled, a cache without a fetch timestamp
         // (e.g. written by a pre-amendment build) is treated as absent.
         mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, null),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -428,7 +428,7 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, "not-a-number"),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
@@ -439,9 +439,9 @@ public class ProjectSelectionProtocolMapperTest {
         String veryOld = "1546300800000"; // 2019 — the bound is disabled; age is never checked
 
         mapper.setClaim(token, mappingModelWithMaxAge("0"), userSessionWith(ENTITLED, veryOld),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
-        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
     }
 
     @Test
@@ -451,9 +451,9 @@ public class ProjectSelectionProtocolMapperTest {
 
         // The default realm (no entitlement.max-age configured) — enforcement inert.
         mapper.setClaim(token, mappingModel(), userSessionWith(ENTITLED, veryOld),
-                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
-        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
     }
 
     // ---- the sync guard: the realm must hold a healthy fetch-mapper feeder ----
@@ -463,12 +463,12 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                sessionWith(selectionParam("abc-42"), adminOnlyProfile(),
                         List.of(feederAt(IdentityProviderMapperSyncMode.LEGACY)),
                         Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
                 mock(ClientSessionContext.class));
 
-        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
     }
 
     @Test
@@ -476,12 +476,12 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                sessionWith(selectionParam("abc-42"), adminOnlyProfile(),
                         List.of(feederAt(IdentityProviderMapperSyncMode.INHERIT)),
                         Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
                 mock(ClientSessionContext.class));
 
-        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
     }
 
     @Test
@@ -491,12 +491,12 @@ public class ProjectSelectionProtocolMapperTest {
         // The verified delegate rule: an UNSET federation mode resolves to LEGACY,
         // which refreshes every login — benign, emits.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                sessionWith(selectionParam("abc-42"), adminOnlyProfile(),
                         List.of(feederAt(IdentityProviderMapperSyncMode.INHERIT)),
                         Map.of("entra", idpAt(null))),
                 mock(ClientSessionContext.class));
 
-        assertEquals("EPM-AEM", token.getOtherClaims().get("project"));
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
     }
 
     @Test
@@ -506,7 +506,7 @@ public class ProjectSelectionProtocolMapperTest {
         // The frozen trap: the console writes IMPORT on new federations; INHERIT over
         // it freezes the cache after the first login — no claim, loudly.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                sessionWith(selectionParam("abc-42"), adminOnlyProfile(),
                         List.of(feederAt(IdentityProviderMapperSyncMode.INHERIT)),
                         Map.of("entra", idpAt(IdentityProviderSyncMode.IMPORT))),
                 mock(ClientSessionContext.class));
@@ -519,7 +519,7 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                sessionWith(selectionParam("abc-42"), adminOnlyProfile(),
                         List.of(feederAt(IdentityProviderMapperSyncMode.IMPORT)),
                         Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
                 mock(ClientSessionContext.class));
@@ -534,7 +534,7 @@ public class ProjectSelectionProtocolMapperTest {
         // The matched set's missing half: without a feeder the attribute would
         // never refresh — no claim, loudly.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                sessionWith(selectionParam("abc-42"), adminOnlyProfile(),
                         List.of(), Map.of()),
                 mock(ClientSessionContext.class));
 
@@ -546,7 +546,7 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
-                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                sessionWith(selectionParam("abc-42"), adminOnlyProfile(),
                         List.of(feederAt(IdentityProviderMapperSyncMode.FORCE)),
                         Map.of()), // no "entra" federation — a dangling feeder alias
                 mock(ClientSessionContext.class));

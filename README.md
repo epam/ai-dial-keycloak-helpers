@@ -140,17 +140,21 @@ project-entitlement flow — the two must be configured **together**:
 
 **Requirements for the pair to work (all fail closed with an ERROR log when violated):**
 
-1. **Sync mode**: configure the IdP mapper at **sync mode `FORCE`** (or `INHERIT` over a
+1. **Naming convention**: set `convention.regex` and `convention.prefix` on the fetch
+   mapper. The naming convention is realm policy — the jar ships **no defaults** for
+   it; an unconfigured convention fails closed (the fetch clears the cache, no claim,
+   an ERROR names the knob).
+2. **Sync mode**: configure the IdP mapper at **sync mode `FORCE`** (or `INHERIT` over a
    federation at `FORCE`/`LEGACY`). The protocol mapper refuses to mint when the realm
    has no entitlement IdP mapper or any one of them is effectively at `IMPORT` (a cache
    that would freeze after the first login).
-2. **Attribute declaration**: declare BOTH the `projectEntitlement` attribute AND its
+3. **Attribute declaration**: declare BOTH the `projectEntitlement` attribute AND its
    `projectEntitlementAt` fetch-timestamp attribute **admin-only** in the realm's User
    Profile (edit: admin). The protocol mapper refuses to mint when either attribute is
    undeclared, malformed, or user-editable — a user-writable entitlement would let any
    account self-grant projects, and a user-writable timestamp would defeat the freshness
    bound (the cache would never age out).
-3. **Freshness (optional)**: the protocol mapper's `entitlement.max-age` config (minutes,
+4. **Freshness (optional)**: the protocol mapper's `entitlement.max-age` config (minutes,
    default `0` = disabled) bounds how old the cached entitlement may be — a cache older
    than the bound (or without a timestamp) yields no claim until the user's next brokered
    login. Set it above the realm's SSO Session Max. With the bound disabled, the cached
@@ -159,7 +163,7 @@ project-entitlement flow — the two must be configured **together**:
    idle offline grant; enabling the bound is the mitigation.
 
 Fetch failures never block login: lasting ones (Graph 400/401/403, a missing stored
-broker token, an invalid convention regex) clear the cached entitlement; temporary ones
+broker token, an unconfigured or invalid convention) clear the cached entitlement; temporary ones
 (network errors, 5xx, 429) keep it until the next login.
 
 **Consumers should verify the token locally**: the claim travels only in the access

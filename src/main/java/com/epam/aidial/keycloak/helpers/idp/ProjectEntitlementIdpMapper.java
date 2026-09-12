@@ -32,8 +32,8 @@ import java.util.regex.PatternSyntaxException;
  *
  * <p><b>Failure semantics (explicit, never blocks login, never invents data — the
  * lasting/temporary split, amended 2026-09-11)</b>: a <b>lasting</b> failure — a
- * missing or unparsible stored broker token, Graph 400/401/403, an invalid convention
- * regex — membership is unverifiable and will not heal on retry, so the cached list is
+ * missing or unparsible stored broker token, Graph 400/401/403, an unconfigured or
+ * invalid naming convention — membership is unverifiable and will not heal on retry, so the cached list is
  * <b>cleared to {@code []}</b> (+ ERROR log; a fresh empty list is still fresh — the
  * timestamp is written on every clear). A <b>temporary</b> failure — a network error,
  * Graph 5xx, 429 — <b>keeps the previous entitlement</b> (+ WARN log; the timestamp is
@@ -124,6 +124,16 @@ public class ProjectEntitlementIdpMapper extends AbstractIdentityProviderMapper 
     private void fetchAndCache(UserModel user, IdentityProviderMapperModel mapperModel,
                                BrokeredIdentityContext context) {
         ProjectEntitlementConfiguration config = ProjectEntitlementConfiguration.fromModel(mapperModel);
+
+        // The naming convention is realm policy, never a code default: an unset
+        // regex or prefix is a configuration defect — the same lasting-failure
+        // class as an invalid regex (nothing resolvable remains to keep).
+        if (!config.conventionConfigured()) {
+            log.error("Project naming convention not configured (convention.regex / convention.prefix) — "
+                    + "clearing the cached project entitlement for user {} (lasting failure)", user.getUsername());
+            clearEntitlement(user, config);
+            return;
+        }
 
         // A missing or unparsible stored broker token is a LASTING failure — the
         // entitlement is unverifiable now and at every future login until a real

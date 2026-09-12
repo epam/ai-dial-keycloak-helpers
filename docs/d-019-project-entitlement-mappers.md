@@ -59,8 +59,10 @@ outside its originating context.
 ## Purpose
 
 Implement decision **D-019** (amended mechanics, 2026-09-09): the user's entitled
-projects — Entra ID security groups whose display names follow the convention
-`Project XXX-XXX` ("Project" + space + project id) — become a **server-validated,
+projects — Entra ID security groups whose display names follow the realm's
+configured naming convention (the required regex + prefix knobs — realm policy,
+never a jar default; the examples here use the generic `project-abc-42` shape) —
+become a **server-validated,
 singular `project` claim** in Keycloak-issued tokens. The session's project is a
 **client selection** (custom authorize parameter), validated at every mint against the
 user's **Graph-fetched entitlement**. Zero per-project configuration; zero application
@@ -184,7 +186,7 @@ mapper.
 
 ```
 GET https://graph.microsoft.com/v1.0/me/memberOf/microsoft.graph.group
-    ?$filter=startswith(displayName,'Project%20')
+    ?$filter=startswith(displayName,'project-')
     &$select=id,displayName
     &$count=true
 Headers: Authorization: Bearer <external token from TokenExtractor>
@@ -196,8 +198,8 @@ Headers: Authorization: Bearer <external token from TokenExtractor>
 - **Per-group fallback (2026-09-11 amendment — replaces the list-wide named/degraded
   "modes" decision)**: the entitlement's value space is resolved **per group**. A
   visible name that conforms to the convention regex → the **parsed project id**
-  (`Project EPM-AEM` → `EPM-AEM`, prefix stripped); a visible non-conforming name
-  (e.g. a `Project Managers` group) → **excluded**; no visible name
+  (`project-abc-42` → `abc-42`, prefix stripped); a visible non-conforming name
+  (e.g. a `project-managers` group) → **excluded**; no visible name
   (`displayName: null` — no consent; Graph's documented "limited information"
   serialization, **the filter still applied server-side**, verified 2026-09-09) → the
   group's **object ID**. The regex gates every visible name in every case; a
@@ -208,7 +210,7 @@ Headers: Authorization: Bearer <external token from TokenExtractor>
   There is no list-wide mode to configure, store, or flip.
 - **Failure handling (amended 2026-09-11 — the lasting/temporary split)**:
   **lasting** failures — Graph 400/401/403, a missing or unparsible stored broker
-  token, an invalid convention regex — **clear the cached list to `[]` + ERROR log**
+  token, an unconfigured or invalid convention — **clear the cached list to `[]` + ERROR log**
   (membership unverifiable → no claim → the client's mandatory detection fires
   downstream). **Temporary** failures — network errors, Graph 5xx, 429, a page-cap
   excess (below) — **keep the previous list + WARN log**. Never invented data; never
@@ -231,8 +233,8 @@ Headers: Authorization: Bearer <external token from TokenExtractor>
 
 | key | label | default |
 |---|---|---|
-| `convention.regex` | Project group name regex | `^Project [A-Za-z0-9]+-[A-Za-z0-9]+$` |
-| `convention.prefix` | Project id prefix strip | `Project ` |
+| `convention.regex` | Project group name regex | **none — required** (e.g. `^project-[A-Za-z0-9]+-[A-Za-z0-9]+$`) |
+| `convention.prefix` | Project id prefix strip | **none — required** (e.g. `project-`) |
 | `selection.param` | Selection parameter name (authorize URL + token-endpoint form parameter) | `project` |
 | `claim.name` | Emitted claim name | `project` |
 | `entitlement.attribute` | Cached user attribute key | `projectEntitlement` |
@@ -241,7 +243,9 @@ Headers: Authorization: Bearer <external token from TokenExtractor>
 The convention regex is the D-019 "fail loud on unrecognized names" mechanism:
 **only convention-conforming groups can ever yield an entitlement value or a claim**;
 anything else is invisible by construction (recorded at debug level, never emitted).
-Knob ownership (2026-09-11 note): the convention keys belong to the fetch mapper, the
+The two convention knobs carry **no defaults** — the naming convention is realm
+policy, not the jar's to decide; an unconfigured convention fails closed exactly
+like an invalid one. Knob ownership (2026-09-11 note): the convention keys belong to the fetch mapper, the
 selection/claim keys to the protocol mapper, `entitlement.attribute` is shared
 (written by the fetch mapper, read by the protocol mapper), and
 `entitlement.max-age` is the protocol mapper's freshness bound (§3).
