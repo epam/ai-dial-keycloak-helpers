@@ -231,7 +231,7 @@ Headers: Authorization: Bearer <external token from TokenExtractor>
 
 | key | label | default |
 |---|---|---|
-| `convention.regex` | Project group name regex | `^Project [A-Za-z0-9]+-[0-9]+$` |
+| `convention.regex` | Project group name regex | `^Project [A-Za-z0-9]+-[A-Za-z0-9]+$` |
 | `convention.prefix` | Project id prefix strip | `Project ` |
 | `selection.param` | Selection parameter name (authorize URL + token-endpoint form parameter) | `project` |
 | `claim.name` | Emitted claim name | `project` |
