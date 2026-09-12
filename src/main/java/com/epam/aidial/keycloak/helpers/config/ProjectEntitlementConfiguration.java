@@ -83,8 +83,8 @@ public class ProjectEntitlementConfiguration {
                 config.getOrDefault(CLAIM_NAME, DEFAULT_CLAIM_NAME),
                 config.getOrDefault(ENTITLEMENT_ATTRIBUTE, DEFAULT_ENTITLEMENT_ATTRIBUTE),
                 parseMaxAgeMinutes(config.get(ENTITLEMENT_MAX_AGE)),
-                parseTimeoutMillis(config.get(GRAPH_CONNECT_TIMEOUT), DEFAULT_GRAPH_CONNECT_TIMEOUT),
-                parseTimeoutMillis(config.get(GRAPH_READ_TIMEOUT), DEFAULT_GRAPH_READ_TIMEOUT)
+                parseTimeoutMillis(GRAPH_CONNECT_TIMEOUT, config.get(GRAPH_CONNECT_TIMEOUT), DEFAULT_GRAPH_CONNECT_TIMEOUT),
+                parseTimeoutMillis(GRAPH_READ_TIMEOUT, config.get(GRAPH_READ_TIMEOUT), DEFAULT_GRAPH_READ_TIMEOUT)
         );
     }
 
@@ -97,7 +97,12 @@ public class ProjectEntitlementConfiguration {
             return 0L;
         }
         try {
-            return Long.parseLong(value.trim());
+            long parsed = Long.parseLong(value.trim());
+            if (parsed < 0) {
+                log.warn("Invalid '{}' config value '{}' — using 0 (the freshness bound disabled)", ENTITLEMENT_MAX_AGE, value);
+                return 0L;
+            }
+            return parsed;
         } catch (NumberFormatException e) {
             log.warn("Invalid '{}' config value '{}' — treating as 0 (the freshness bound disabled)", ENTITLEMENT_MAX_AGE, value);
             return 0L;
@@ -105,17 +110,24 @@ public class ProjectEntitlementConfiguration {
     }
 
     /**
-     * A Graph HTTP timeout in milliseconds, leniently parsed — an unset or
-     * unparsible value means the given default. Never fails the mapper.
+     * A Graph HTTP timeout in milliseconds, leniently parsed — an unset, unparsible,
+     * or non-positive value means the given default (a non-positive timeout is
+     * undefined for {@code HttpURLConnection}: zero reads as INFINITE, negative
+     * throws). Never fails the mapper.
      */
-    private static int parseTimeoutMillis(String value, String defaultValue) {
+    private static int parseTimeoutMillis(String key, String value, String defaultValue) {
         if (value == null || value.isEmpty()) {
             return Integer.parseInt(defaultValue);
         }
         try {
-            return Integer.parseInt(value.trim());
+            long parsed = Long.parseLong(value.trim());
+            if (parsed <= 0 || parsed > Integer.MAX_VALUE) {
+                log.warn("Invalid '{}' config value '{}' — a timeout must be a positive number of milliseconds; using the default {} ms", key, value, defaultValue);
+                return Integer.parseInt(defaultValue);
+            }
+            return (int) parsed;
         } catch (NumberFormatException e) {
-            log.warn("Invalid Graph timeout config value '{}' — using the default {} ms", value, defaultValue);
+            log.warn("Invalid '{}' config value '{}' — using the default {} ms", key, value, defaultValue);
             return Integer.parseInt(defaultValue);
         }
     }

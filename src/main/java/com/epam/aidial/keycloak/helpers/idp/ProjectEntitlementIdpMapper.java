@@ -173,6 +173,10 @@ public class ProjectEntitlementIdpMapper extends AbstractIdentityProviderMapper 
             // Serialization of a plain string list cannot fail in practice — kept as the
             // safe fallback: never invent data, never block login, touch nothing stale.
             log.warn("Failed to serialize the project entitlement for user {} — keeping previous entitlement if present", user.getUsername(), e);
+        } catch (RuntimeException e) {
+            // Backstop: this hook must NEVER break a brokered login — any unexpected
+            // failure keeps the previous entitlement and logs, as the temporary class does.
+            log.warn("Project entitlement refresh failed unexpectedly for user {} — keeping previous entitlement if present", user.getUsername(), e);
         }
     }
 

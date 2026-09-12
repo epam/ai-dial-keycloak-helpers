@@ -185,4 +185,38 @@ public class ProjectEntitlementIdpMapperTest {
         org.junit.Assert.assertTrue(mapper.supportsSyncMode(org.keycloak.models.IdentityProviderSyncMode.LEGACY));
         org.junit.Assert.assertFalse(mapper.supportsSyncMode(org.keycloak.models.IdentityProviderSyncMode.IMPORT));
     }
+
+    @Test
+    public void nonPositiveTimeoutKnobsFallBackToDefaults() {
+        // Zero reads as an INFINITE timeout and negative throws on
+        // HttpURLConnection — both clamp to the documented defaults, the fetch proceeds.
+        when(mapperModel.getConfig()).thenReturn(Map.of(
+                "convention.regex", "^Project [A-Za-z0-9]+-[A-Za-z0-9]+$",
+                "convention.prefix", "Project ",
+                "graph.connect.timeout", "-5",
+                "graph.read.timeout", "0"));
+        stubSuccessfulFetch();
+
+        mapper.updateBrokeredUser(null, null, user, mapperModel, context);
+
+        org.mockito.ArgumentCaptor<Integer> connect = org.mockito.ArgumentCaptor.forClass(Integer.class);
+        org.mockito.ArgumentCaptor<Integer> read = org.mockito.ArgumentCaptor.forClass(Integer.class);
+        verify(graphProvider).fetchProjectGroups(eq("access-token"), anyString(), connect.capture(), read.capture());
+        org.junit.Assert.assertEquals(5000, connect.getValue().intValue());
+        org.junit.Assert.assertEquals(10000, read.getValue().intValue());
+    }
+
+    @Test
+    public void unexpectedFailureNeverBlocksLogin() {
+        // The never-blocks backstop: an exception outside the classified classes
+        // (a bug, a hostile config) must not break the brokered login.
+        when(tokenExtractor.extractAccessToken("token-json")).thenReturn("access-token");
+        when(graphProvider.fetchProjectGroups(eq("access-token"), anyString(), anyInt(), anyInt()))
+                .thenThrow(new IllegalStateException("unexpected"));
+
+        mapper.updateBrokeredUser(null, null, user, mapperModel, context); // must not throw
+
+        verify(user, never()).setSingleAttribute(eq(ENTITLEMENT_ATTRIBUTE), anyString());
+        verify(user, never()).setSingleAttribute(eq(TIMESTAMP_ATTRIBUTE), anyString());
+    }
 }
