@@ -79,6 +79,19 @@ public class ProjectEntitlementTest {
     }
 
     @Test
+    public void entryWithNeitherIdNorNameIsSkipped() {
+        // A Graph serialization anomaly (no id, no name) must not NPE the
+        // brokered login — the entry is skipped loudly, the rest resolves.
+        List<ProjectGroup> groups = List.of(
+                new ProjectGroup(null, null),
+                new ProjectGroup("id-2", "Project EPM-AEM"));
+
+        ProjectEntitlement entitlement = ProjectEntitlement.fromGroups(groups, REGEX, PREFIX);
+
+        assertEquals(List.of("EPM-AEM"), entitlement.getValues());
+    }
+
+    @Test
     public void valuesAreSortedAndDeduplicated() {
         List<ProjectGroup> groups = List.of(
                 new ProjectGroup("id-1", "Project B-2"),

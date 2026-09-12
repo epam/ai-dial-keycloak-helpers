@@ -51,6 +51,12 @@ public class ProjectEntitlement {
 
         for (ProjectGroup group : groups) {
             String name = group.getDisplayName();
+            if (name == null && group.getId() == null) {
+                // A Graph entry with neither an id nor a name is a serialization
+                // anomaly — skip it loudly rather than NPE the brokered login.
+                log.warn("Graph returned a group entry with neither id nor displayName — skipped from the entitlement");
+                continue;
+            }
             if (name == null) {
                 // The Graph server-side startswith filter applied even when the name is
                 // hidden — the object ID is the group's claim value.
