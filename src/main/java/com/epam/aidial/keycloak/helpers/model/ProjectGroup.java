@@ -1,0 +1,19 @@
+package com.epam.aidial.keycloak.helpers.model;
+
+import lombok.Value;
+
+/**
+ * A Microsoft Graph directory group as returned by {@code /me/memberOf/microsoft.graph.group}.
+ *
+ * <p>{@code displayName} is {@code null} when the caller may not read it (Graph's documented
+ * "limited information" serialization under delegated {@code User.Read} without
+ * {@code GroupMember.Read.All}) — the case that falls back to the group's object ID
+ * in the per-group entitlement resolution.
+ */
+@Value
+public class ProjectGroup {
+
+    String id;
+
+    String displayName;
+}

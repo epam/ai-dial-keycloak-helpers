@@ -125,6 +125,53 @@ On the next login via Microsoft into your realm, Keycloak will:
 2. Cache relevant user attributes.
 3. Inject selected attributes into the tokens according to your mapper configuration.
 
+## Project entitlement mappers (D-019)
+
+The extension also ships a **matched pair** of mappers for the D-019
+project-entitlement flow — the two must be configured **together**:
+
+- **`Entra Project Entitlement`** (IdP mapper, under *Identity Providers → \<your IdP\> → Mappers*)
+  fetches the user's project groups from Microsoft Graph (with the user's own delegated
+  token) at every brokered login and caches the entitlement on the user as the
+  `projectEntitlement` attribute (plus the `projectEntitlementAt` fetch timestamp).
+- **`Project Selection (OIDC Claim)`** (protocol mapper, under *Client Scopes / Clients → Mappers*)
+  emits the singular `project` claim at every token mint when the request's `project`
+  parameter is within the cached entitlement — silently emitting nothing otherwise.
+
+**Requirements for the pair to work (all fail closed with an ERROR log when violated):**
+
+1. **Naming convention**: set `convention.regex` and `convention.prefix` on the fetch
+   mapper. The naming convention is realm policy — the jar ships **no defaults** for
+   it; an unconfigured convention fails closed (the fetch clears the cache, no claim,
+   an ERROR names the knob).
+2. **Sync mode**: configure the IdP mapper at **sync mode `FORCE`** (or `INHERIT` over a
+   federation at `FORCE`/`LEGACY`). The protocol mapper refuses to mint when the realm
+   has no entitlement IdP mapper or any one of them is effectively at `IMPORT` (a cache
+   that would freeze after the first login).
+3. **Attribute declaration**: declare BOTH the `projectEntitlement` attribute AND its
+   `projectEntitlementAt` fetch-timestamp attribute **admin-only** in the realm's User
+   Profile (edit: admin). The protocol mapper refuses to mint when either attribute is
+   undeclared, malformed, or user-editable — a user-writable entitlement would let any
+   account self-grant projects, and a user-writable timestamp would defeat the freshness
+   bound (the cache would never age out).
+4. **Freshness (optional)**: the protocol mapper's `entitlement.max-age` config (minutes,
+   default `0` = disabled) bounds how old the cached entitlement may be — a cache older
+   than the bound (or without a timestamp) yields no claim until the user's next brokered
+   login. Set it above the realm's SSO Session Max. With the bound disabled, the cached
+   entitlement keeps minting with no age limit — through a sustained temporary-failure
+   window (e.g. Keycloak unable to reach Microsoft Graph, a denial-of-refresh) or on an
+   idle offline grant; enabling the bound is the mitigation.
+
+Fetch failures never block login: lasting ones (Graph 400/401/403, a missing stored
+broker token, an unconfigured or invalid convention) clear the cached entitlement; temporary ones
+(network errors, 5xx, 429) keep it until the next login.
+
+**Consumers should verify the token locally**: the claim travels only in the access
+token (never the ID token or UserInfo), so downstream services — AI DIAL Core included —
+should be configured with the realm's `jwksUrl` and read the `project` claim from the
+locally signature-verified JWT, rather than relying on any introspection or userinfo
+round-trip.
+
 ## Development
 
 - **JDK**: OpenJDK 17+
