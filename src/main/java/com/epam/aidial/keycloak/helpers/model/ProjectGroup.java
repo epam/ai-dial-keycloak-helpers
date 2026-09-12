@@ -7,7 +7,8 @@ import lombok.Value;
  *
  * <p>{@code displayName} is {@code null} when the caller may not read it (Graph's documented
  * "limited information" serialization under delegated {@code User.Read} without
- * {@code GroupMember.Read.All}) — the D-019 degraded mode.
+ * {@code GroupMember.Read.All}) — the case that falls back to the group's object ID
+ * in the per-group entitlement resolution.
  */
 @Value
 public class ProjectGroup {

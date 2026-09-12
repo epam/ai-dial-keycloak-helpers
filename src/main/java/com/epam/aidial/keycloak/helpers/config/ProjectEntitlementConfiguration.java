@@ -143,7 +143,7 @@ public class ProjectEntitlementConfiguration {
                 "Regular expression a project group's display name must match to ever yield an entitlement value "
                         + "(D-019 fail-loud on unrecognized names)", DEFAULT_CONVENTION_REGEX));
         properties.add(textProperty(CONVENTION_PREFIX, "Project Id Prefix",
-                "Prefix stripped from a conforming group display name to obtain the project id (named mode)",
+                "Prefix stripped from a conforming group display name to obtain the project id (the per-group fallback)",
                 DEFAULT_CONVENTION_PREFIX));
         properties.add(textProperty(SELECTION_PARAM, "Selection Parameter",
                 "Request parameter carrying the session's project selection (authorize URL + the exchange/refresh POST form bodies)", DEFAULT_SELECTION_PARAM));

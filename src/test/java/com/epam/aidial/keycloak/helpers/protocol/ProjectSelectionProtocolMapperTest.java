@@ -107,7 +107,7 @@ public class ProjectSelectionProtocolMapperTest {
 
     private KeycloakSession sessionWith(MultivaluedMap<String, String> formParams, UPConfig profileConfig) {
         // The sync guard's happy path: one feeder mapper at FORCE over a FORCE
-        // federation (the rig's configuration).
+        // federation (the reference realm configuration).
         return sessionWith(formParams, profileConfig,
                 List.of(feederAt(IdentityProviderMapperSyncMode.FORCE)), Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE)));
     }
@@ -382,7 +382,7 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         // The premise the guard requires — the properly declared admin-only
-        // attribute (the rig's realm policy) — must not change the emit path.
+        // attribute (the reference realm policy) — must not change the emit path.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
                 sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
 

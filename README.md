@@ -144,14 +144,19 @@ project-entitlement flow — the two must be configured **together**:
    federation at `FORCE`/`LEGACY`). The protocol mapper refuses to mint when the realm
    has no entitlement IdP mapper or any one of them is effectively at `IMPORT` (a cache
    that would freeze after the first login).
-2. **Attribute declaration**: declare the `projectEntitlement` attribute **admin-only**
-   in the realm's User Profile (edit: admin). The protocol mapper refuses to mint when
-   the attribute is undeclared or user-editable — a user-writable entitlement attribute
-   would let any account self-grant projects.
+2. **Attribute declaration**: declare BOTH the `projectEntitlement` attribute AND its
+   `projectEntitlementAt` fetch-timestamp attribute **admin-only** in the realm's User
+   Profile (edit: admin). The protocol mapper refuses to mint when either attribute is
+   undeclared, malformed, or user-editable — a user-writable entitlement would let any
+   account self-grant projects, and a user-writable timestamp would defeat the freshness
+   bound (the cache would never age out).
 3. **Freshness (optional)**: the protocol mapper's `entitlement.max-age` config (minutes,
    default `0` = disabled) bounds how old the cached entitlement may be — a cache older
    than the bound (or without a timestamp) yields no claim until the user's next brokered
-   login. Set it above the realm's SSO Session Max.
+   login. Set it above the realm's SSO Session Max. With the bound disabled, the cached
+   entitlement keeps minting with no age limit — through a sustained temporary-failure
+   window (e.g. Keycloak unable to reach Microsoft Graph, a denial-of-refresh) or on an
+   idle offline grant; enabling the bound is the mitigation.
 
 Fetch failures never block login: lasting ones (Graph 400/401/403, a missing stored
 broker token, an invalid convention regex) clear the cached entitlement; temporary ones
