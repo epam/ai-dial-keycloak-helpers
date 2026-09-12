@@ -105,6 +105,18 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
     protected void setClaim(IDToken token, ProtocolMapperModel mappingModel,
                             UserSessionModel userSession, KeycloakSession keycloakSession,
                             ClientSessionContext clientSessionCtx) {
+        try {
+            doSetClaim(token, mappingModel, userSession, keycloakSession, clientSessionCtx);
+        } catch (RuntimeException e) {
+            // Backstop: the mapper must never be what breaks a mint — any unexpected
+            // failure (a corrupt config, a hostile model) fails closed: no claim, loudly.
+            log.error("Project claim mapping failed unexpectedly — emitting no claim (fail closed)", e);
+        }
+    }
+
+    private void doSetClaim(IDToken token, ProtocolMapperModel mappingModel,
+                            UserSessionModel userSession, KeycloakSession keycloakSession,
+                            ClientSessionContext clientSessionCtx) {
 
         if (!(token instanceof AccessToken)) {
             return; // access-token-only by design (HARD RULE: the claim transport stays out of id_token/userinfo)
@@ -166,20 +178,32 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
     }
 
     /**
-     * The realm's User Profile must declare the entitlement attribute and it
-     * must not be user-editable — an undeclared or user-writable attribute
-     * fails the mint's premise (self-written entitlements would mint claims).
-     * Resolves the realm configuration at the point of use; when the premise
-     * cannot be verified (no realm/session scope) it fails closed. Returns
-     * {@code true} only when the premise holds.
+     * The realm's User Profile must declare BOTH halves of the cached state —
+     * the entitlement attribute AND its {@code projectEntitlementAt} fetch
+     * timestamp — and neither may be user-editable: a self-written entitlement
+     * mints claims; a self-written far-future timestamp defeats the freshness
+     * bound (the cache would never age out — unbounded revocation lag). The
+     * premise is resolved from the realm configuration at the point of use;
+     * when it cannot be verified (no realm/session scope) or is malformed it
+     * fails closed. Returns {@code true} only when the premise holds.
      */
-    private boolean attributePremiseHolds(RealmModel realm, KeycloakSession keycloakSession, String attribute) {
-        if (realm == null) {
-            log.error("No realm scope — the entitlement attribute '{}' premise cannot be verified — emitting no claim (fail closed)", attribute);
+    private boolean attributePremiseHolds(RealmModel realm, KeycloakSession keycloakSession, String entitlementAttribute) {
+        if (realm == null || keycloakSession == null) {
+            log.error("No realm scope — the entitlement attribute '{}' premise cannot be verified — emitting no claim (fail closed)", entitlementAttribute);
             return false;
         }
         UserProfileProvider profileProvider = keycloakSession.getProvider(UserProfileProvider.class);
         UPConfig profileConfig = profileProvider == null ? null : profileProvider.getConfiguration();
+        return attributeIsAdminOnly(profileConfig, entitlementAttribute)
+                && attributeIsAdminOnly(profileConfig, ProjectEntitlementConfiguration.ENTITLEMENT_TIMESTAMP_ATTRIBUTE);
+    }
+
+    /**
+     * One attribute's half of the premise: declared, with well-formed
+     * admin-only edit permissions (a malformed declaration — no permissions,
+     * no edit key — reads as undeclared, per the file's fail-closed style).
+     */
+    private boolean attributeIsAdminOnly(UPConfig profileConfig, String attribute) {
         UPAttribute declaration = attributeDeclaration(profileConfig, attribute);
         if (declaration == null) {
             log.error("Entitlement attribute '{}' is not declared in the realm's User Profile — emitting no claim (fail closed). "
@@ -187,7 +211,12 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
             return false;
         }
         UPAttributePermissions permissions = declaration.getPermissions();
-        Set<String> edit = permissions == null ? Set.of() : permissions.getEdit();
+        Set<String> edit = permissions == null ? null : permissions.getEdit();
+        if (edit == null) {
+            log.error("Entitlement attribute '{}' has a malformed User Profile declaration (no edit permissions) — emitting no claim (fail closed). "
+                    + "Declare it admin-only (edit: admin)", attribute);
+            return false;
+        }
         if (edit.contains(ROLE_USER) || edit.contains(ROLE_ANONYMOUS)) {
             log.error("Entitlement attribute '{}' is user-editable in the realm's User Profile (edit: {}) — emitting no claim (fail closed). "
                     + "Restrict the declaration to admin-only edit — a user-writable entitlement attribute is an enforcement-premise defect", attribute, edit);

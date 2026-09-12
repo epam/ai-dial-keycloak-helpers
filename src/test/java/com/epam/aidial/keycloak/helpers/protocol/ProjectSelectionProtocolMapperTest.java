@@ -80,13 +80,16 @@ public class ProjectSelectionProtocolMapperTest {
     }
 
     /**
-     * The User Profile declaration the attribute-premise guard requires: the
-     * entitlement attribute declared admin-only (edit: admin) — the rig's realm
-     * policy, and the adopting realm's checklist item.
+     * The User Profile declaration the attribute-premise guard requires: BOTH
+     * halves of the cached state — the entitlement attribute AND its fetch
+     * timestamp — declared admin-only (edit: admin) — the reference realm
+     * configuration, and the adopting realm's checklist item.
      */
     private static UPConfig adminOnlyProfile() {
         UPConfig profile = new UPConfig();
         profile.addOrReplaceAttribute(new UPAttribute(ENTITLEMENT_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("admin"))));
+        profile.addOrReplaceAttribute(new UPAttribute(TIMESTAMP_ATTRIBUTE,
                 new UPAttributePermissions(Set.of(), Set.of("admin"))));
         return profile;
     }
@@ -284,9 +287,92 @@ public class ProjectSelectionProtocolMapperTest {
         UPConfig userEditable = new UPConfig();
         userEditable.addOrReplaceAttribute(new UPAttribute(ENTITLEMENT_ATTRIBUTE,
                 new UPAttributePermissions(Set.of(), Set.of("user", "admin"))));
+        userEditable.addOrReplaceAttribute(new UPAttribute(TIMESTAMP_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("admin"))));
 
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
                 sessionWith(selectionParam("EPM-AEM"), userEditable), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void userEditableTimestampAttributeEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // The timestamp is the other half of the premise: a user-writable
+        // projectEntitlementAt lets an account self-write a far-future fetch
+        // time and defeat the freshness bound (the cache would never age out).
+        UPConfig userEditableTimestamp = new UPConfig();
+        userEditableTimestamp.addOrReplaceAttribute(new UPAttribute(ENTITLEMENT_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("admin"))));
+        userEditableTimestamp.addOrReplaceAttribute(new UPAttribute(TIMESTAMP_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("user"))));
+
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, Long.toString(System.currentTimeMillis())),
+                sessionWith(selectionParam("EPM-AEM"), userEditableTimestamp), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void undeclaredTimestampAttributeEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // Only the entitlement attribute is declared — the timestamp attribute
+        // rides the unmanaged-attributes write surface → the premise is broken.
+        UPConfig entitlementOnly = new UPConfig();
+        entitlementOnly.addOrReplaceAttribute(new UPAttribute(ENTITLEMENT_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("admin"))));
+
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, Long.toString(System.currentTimeMillis())),
+                sessionWith(selectionParam("EPM-AEM"), entitlementOnly), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void malformedDeclarationWithoutEditKeyEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // A declaration whose permissions carry no edit key reads as malformed —
+        // fail closed, and never an NPE inside the mint.
+        UPConfig noEditKey = new UPConfig();
+        noEditKey.addOrReplaceAttribute(new UPAttribute(ENTITLEMENT_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), null)));
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), noEditKey), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void corruptFeederSyncModeEmitsNothingWithoutThrowing() {
+        AccessToken token = new AccessToken();
+
+        // A garbage syncMode string would throw inside the model's valueOf —
+        // the mint must never 500: no claim, loudly.
+        IdentityProviderMapperModel corrupt = feederAt(IdentityProviderMapperSyncMode.FORCE);
+        corrupt.getConfig().put("syncMode", "GARBAGE");
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam("EPM-AEM"), adminOnlyProfile(),
+                        List.of(corrupt), Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
+                mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void nullMapperConfigEmitsNothingWithoutThrowing() {
+        AccessToken token = new AccessToken();
+
+        ProtocolMapperModel nullConfig = mock(ProtocolMapperModel.class);
+        when(nullConfig.getConfig()).thenReturn(null);
+
+        mapper.setClaim(token, nullConfig, userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", "EPM-AEM"), mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
     }
