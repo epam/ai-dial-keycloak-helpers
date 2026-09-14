@@ -34,7 +34,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Validate-and-emit protocol mapper (D-019, config-repo spec 02 §2 piece 2 of 2):
+ * Validate-and-emit protocol mapper (openspec: project-entitlement/selection-claim —
+ * Request-carried selection / Set-membership validation and emission):
  * at <b>every token mint</b> reads the selection from <b>the request itself</b> —
  * the {@code project} form parameter of the exchange/refresh POST this mint
  * belongs to (untrusted client input) — and the user's cached entitlement
@@ -42,22 +43,18 @@ import java.util.Set;
  *
  * <p><b>selection ∈ entitlement → emit {@code project: "<selection>"}</b> as a plain
  * JSON string (access token only); <b>else → emit nothing</b> — HTTP 200, well-formed
- * token, no error surface. The silent-drop semantics the client's mandatory
- * claim-verification detects (config-repo spec 03 / the P3/P4 CLI MUST).
+ * token, no error surface. The drop is silent by design, so a consuming client
+ * must verify the claim's presence itself.
  *
  * <p>Validation is a set-membership comparison — the selection is never interpolated,
  * parsed, or executed (no injection surface). A malformed cached entitlement fails
  * closed (no claim).
  *
- * <p><b>No IdP session state is read or written</b> (the 2026-09-10 re-mint-defect
- * amendment, config-repo spec 02 §4): the request is the ONLY selection source —
- * no param → no claim, uniformly, with no fallback. The former
- * {@code PROJECT_SELECTION} client-session note was frozen at the SSO user
- * session's first consumer-client authorize and re-emitted cross-session (the
- * live E2E falsification); the note machinery is <b>removed, not repaired</b> —
- * per-grant requests carry their selection explicitly (authorize + exchange +
- * every refresh POST, the RFC 6749 §6 shape), so parallel sessions are isolated
- * by construction and a mid-session aliasing has no shared state to arise from.
+ * <p><b>No IdP session state is read or written</b>: the request is the ONLY
+ * selection source — no param → no claim, uniformly, with no fallback. Per-grant
+ * requests carry their selection explicitly (the exchange and every refresh POST,
+ * the RFC 6749 §6 shape), so parallel sessions are isolated by construction and a
+ * mid-session aliasing has no shared state to arise from.
  */
 @Slf4j
 public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
@@ -119,33 +116,34 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
                             ClientSessionContext clientSessionCtx) {
 
         if (!(token instanceof AccessToken)) {
-            return; // access-token-only by design (HARD RULE: the claim transport stays out of id_token/userinfo)
+            return; // access-token-only by design (openspec: project-entitlement/selection-claim — the claim transport stays out of id_token/userinfo)
         }
 
         ProjectEntitlementConfiguration config = ProjectEntitlementConfiguration.fromModel(mappingModel);
         RealmModel realm = realmOf(keycloakSession);
 
-        // Attribute-premise guard (the 2026-09-11 review hardening): the cached
-        // entitlement is a plain user attribute used as the premise of an
-        // enforcement decision — its write surface is realm policy (the User
-        // Profile declaration), and a broken premise fails CLOSED here: no
-        // claim, loudly. Detection, not prevention — no token mapper can defend
-        // a realm's attribute-write surface.
+        // Attribute-premise guard (openspec: project-entitlement/selection-claim —
+        // Attribute-premise guard): the cached entitlement is a plain user attribute
+        // used as the premise of an enforcement decision — its write surface is realm
+        // policy (the User Profile declaration), and a broken premise fails CLOSED
+        // here: no claim, loudly. Detection, not prevention — no token mapper can
+        // defend a realm's attribute-write surface.
         if (!attributePremiseHolds(realm, keycloakSession, config.getEntitlementAttribute())) {
             return;
         }
 
-        // Sync guard (the 2026-09-11 review hardening): the entitlement refresh
-        // runs only under effective sync mode FORCE or LEGACY — a frozen (IMPORT)
-        // cache must never mint silently, and a missing feeder never refreshes at
-        // all. Both fail CLOSED here.
+        // Sync guard (openspec: project-entitlement/selection-claim — Sync guard):
+        // the entitlement refresh runs only under effective sync mode FORCE or
+        // LEGACY — a frozen (IMPORT) cache must never mint silently, and a missing
+        // feeder never refreshes at all. Both fail CLOSED here.
         if (!syncPremiseHolds(realm)) {
             return;
         }
 
-        // Selection source: the REQUEST only (config-repo spec 02 §4, amended
-        // 2026-09-10). Guarded — the context/httpRequest may be null outside
-        // request scope (service-account/offline mints) → no claim.
+        // Selection source: the REQUEST only (openspec: project-entitlement/
+        // selection-claim — Request-carried selection). Guarded — the
+        // context/httpRequest may be null outside request scope
+        // (service-account/offline mints) → no claim.
         String selection = requestFormParam(keycloakSession, config.getSelectionParam());
 
         String entitlementJson = userSession.getUser().getFirstAttribute(config.getEntitlementAttribute());
@@ -153,10 +151,11 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
             return;
         }
 
-        // Freshness bound (the 2026-09-11 review hardening): when enabled, a cache
-        // older than the bound — or without a fetch timestamp — is treated as
-        // ABSENT → no claim (fail closed, never fail open). Caches the idle time
-        // of a correctly-refreshing mapper; a re-login refreshes and cures.
+        // Freshness bound (openspec: project-entitlement/selection-claim —
+        // Freshness bound): when enabled, a cache older than the bound — or
+        // without a fetch timestamp — is treated as ABSENT → no claim (fail
+        // closed, never fail open). Caches the idle time of a
+        // correctly-refreshing mapper; a re-login refreshes and cures.
         if (config.getEntitlementMaxAgeMinutes() > 0 && !entitlementCacheIsFresh(userSession.getUser(), config)) {
             return;
         }
@@ -328,9 +327,7 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
      * The {@code paramName} form parameter of THIS mint's own request, or
      * {@code null} when absent or when no request scope exists. The accessor is
      * the documented Quarkus/Resteasy pattern (the decoded form parameters are
-     * cached after the token endpoint's own {@code @FormParam} parsing) — its
-     * live behavior on Keycloak 26.7.2 is proven by the rig's re-mint proof
-     * (config-repo spec 02 §9, implementation-time unknown (a)).
+     * cached after the token endpoint's own {@code @FormParam} parsing).
      */
     private static String requestFormParam(KeycloakSession keycloakSession, String paramName) {
         if (keycloakSession == null) {

@@ -7,8 +7,8 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /**
- * The per-group fallback contract (amended 2026-09-11 — the list-wide
- * named/degraded "mode" is dissolved): a conforming visible name → parsed
+ * The per-group fallback contract (openspec: project-entitlement/fetch —
+ * Convention-gated value resolution): a conforming visible name → parsed
  * project id; a non-conforming visible name → excluded (in EVERY batch shape);
  * a null name → the group's object ID. Regex-gated in every case; no list-wide
  * mode to configure, store, or flip.
@@ -41,8 +41,8 @@ public class ProjectEntitlementTest {
 
     @Test
     public void mixedBatchResolvesPerGroupNotPerBatch() {
-        // The 2026-09-11 ruling: per-group fallback — names where visible,
-        // object IDs where not; nothing list-wide degrades.
+        // Per-group fallback — names where visible, object IDs where not;
+        // nothing list-wide degrades.
         List<ProjectGroup> groups = List.of(
                 new ProjectGroup("id-1", null),
                 new ProjectGroup("id-2", "project-abc-42"));

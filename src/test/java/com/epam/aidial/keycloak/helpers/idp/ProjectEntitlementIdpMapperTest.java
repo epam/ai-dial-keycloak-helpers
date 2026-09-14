@@ -24,12 +24,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * The lasting/temporary failure split with the fetch timestamp (amended
- * 2026-09-11): a LASTING failure — a missing/unparsible stored broker token,
- * Graph 400/401/403, an invalid convention regex — clears the cache to {@code []}
- * and writes the timestamp; a TEMPORARY one — network errors, 5xx, 429 — keeps the
- * previous entitlement and touches nothing. Every case also pins the timestamp
- * write on success (collaborators injected — constructor injection per the review).
+ * The lasting/temporary failure split with the fetch timestamp (openspec:
+ * project-entitlement/fetch — Lasting-failure handling / Temporary-failure
+ * handling / Cache timestamp): a LASTING failure — a missing/unparsible stored
+ * broker token, Graph 400/401/403, an invalid convention regex — clears the
+ * cache to {@code []} and writes the timestamp; a TEMPORARY one — network
+ * errors, 5xx, 429 — keeps the previous entitlement and touches nothing. Every
+ * case also pins the timestamp write on success (collaborators injected —
+ * constructor injection).
  */
 public class ProjectEntitlementIdpMapperTest {
 

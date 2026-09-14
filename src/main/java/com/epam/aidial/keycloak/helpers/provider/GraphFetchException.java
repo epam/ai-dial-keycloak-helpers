@@ -2,12 +2,13 @@ package com.epam.aidial.keycloak.helpers.provider;
 
 /**
  * A failed Microsoft Graph fetch by the project-groups provider, carrying the
- * HTTP status for the caller's lasting/temporary failure split (amended
- * 2026-09-11): a <b>lasting</b> failure — Graph 400/401/403 (a configuration or
- * authorization defect that will not heal on retry) — must clear the cached
- * entitlement; a <b>temporary</b> one — network errors, 5xx, 429, a pagination
- * anomaly — must keep it. Any status other than the lasting set (including no
- * status at all) classifies temporary.
+ * HTTP status for the caller's lasting/temporary failure split
+ * (openspec: project-entitlement/fetch — Lasting-failure handling /
+ * Temporary-failure handling): a <b>lasting</b> failure — Graph 400/401/403 (a
+ * configuration or authorization defect that will not heal on retry) — must
+ * clear the cached entitlement; a <b>temporary</b> one — network errors, 5xx,
+ * 429, a pagination anomaly — must keep it. Any status other than the lasting
+ * set (including no status at all) classifies temporary.
  */
 public class GraphFetchException extends RuntimeException {
 

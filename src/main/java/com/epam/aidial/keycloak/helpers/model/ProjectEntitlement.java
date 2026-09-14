@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 /**
  * The user's project entitlement: the ordered, de-duplicated set of project values
  * resolved from the user's Graph groups, each value per the <b>per-group fallback</b>
- * (amended 2026-09-11 — the former list-wide named/degraded "mode" is dissolved):
+ * (openspec: project-entitlement/fetch — Convention-gated value resolution):
  * <ul>
  *   <li>a visible {@code displayName} that <b>conforms</b> to the convention regex →
  *       the parsed project id (display name minus the convention prefix);</li>
@@ -24,9 +24,9 @@ import java.util.regex.Pattern;
  * </ul>
  *
  * <p>There is no list-wide mode to configure, store, or flip. A genuinely mixed batch
- * (some names visible, some null) is an anomaly — logged loudly (org reality: groups
+ * (some names visible, some null) is an anomaly — logged loudly (in practice groups
  * are all-named or all-null; the log is the observable signal for Graph-filter drift) —
- * and still resolves per group, which is strictly stronger than the former
+ * and still resolves per group, which is strictly stronger than a
  * degrade-the-whole-batch rule: a visible non-conforming name can never ride in.
  */
 @Slf4j

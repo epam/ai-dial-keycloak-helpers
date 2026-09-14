@@ -19,7 +19,8 @@ import java.util.List;
  * Fetches the brokered user's project groups from Microsoft Graph —
  * {@code /me/memberOf/microsoft.graph.group} with the <b>user's own delegated
  * token</b> (documented least privilege: delegated {@code User.Read}; no
- * application permissions, D-019 config-repo spec 02 §3).
+ * application permissions — openspec: project-entitlement/fetch —
+ * Delegated-token Graph access).
  *
  * <p>The server-side {@code startswith(displayName,'<prefix>')} advanced filter
  * (OData cast + {@code ConsistencyLevel: eventual}) is applied even when the
@@ -27,7 +28,9 @@ import java.util.List;
  * fallback still receives the convention-filtered group set. Paginated via
  * {@code @odata.nextLink}, immune to the token groups-claim overage problem.
  *
- * <p><b>Hardened (amended 2026-09-11)</b>: explicit connect/read timeouts;
+ * <p><b>Hardened</b> (openspec: project-entitlement/fetch — Graph request
+ * timeouts / Bounded pagination / nextLink host restriction / Closed error
+ * streams): explicit connect/read timeouts;
  * {@code $top=999} page size; a fixed page cap — a pagination chain beyond it
  * fails as a <b>temporary</b> failure (the caller keeps the previous
  * entitlement); the {@code @odata.nextLink} chain is followed <b>only</b> while

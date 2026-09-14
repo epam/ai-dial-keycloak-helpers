@@ -10,7 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Configuration for the D-019 project-entitlement mappers.
+ * Configuration for the project-entitlement mappers
+ * (openspec: project-entitlement/fetch and project-entitlement/selection-claim —
+ * Mapper configuration knobs).
  *
  * <p>Backed by mapper model config properties and shared between the IdP mapper
  * (Graph fetch) and the validate-and-emit protocol mapper.
@@ -150,7 +152,7 @@ public class ProjectEntitlementConfiguration {
         properties.add(textProperty(CONVENTION_REGEX, "Project Group Name Regex",
                 "Required — no default (the naming convention is realm policy, not the jar's): the regular expression "
                         + "a project group's display name must match to ever yield an entitlement value "
-                        + "(D-019 fail-loud on unrecognized names), e.g. ^project-[A-Za-z0-9]+-[A-Za-z0-9]+$", null));
+                        + "(fail-loud on unrecognized names), e.g. ^project-[A-Za-z0-9]+-[A-Za-z0-9]+$", null));
         properties.add(textProperty(CONVENTION_PREFIX, "Project Id Prefix",
                 "Required — no default: the prefix stripped from a conforming group display name to obtain the project id, "
                         + "sent as the Graph startswith filter, e.g. project-", null));

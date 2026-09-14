@@ -23,22 +23,23 @@ import java.util.regex.PatternSyntaxException;
 
 /**
  * Identity provider mapper that caches the brokered user's <b>project entitlement</b>
- * (D-019, config-repo spec 02 §2 piece 1): at every brokered login it extracts the
+ * (openspec: project-entitlement/fetch — Brokered-login entitlement fetch /
+ * Cache timestamp): at every brokered login it extracts the
  * user's external access token, fetches the user's convention-prefixed Graph groups
  * via {@link MsGraphProjectGroupsProvider}, and caches the resolved entitlement on
  * the Keycloak user as a JSON array under {@code projectEntitlement} — with the
  * {@code projectEntitlementAt} fetch timestamp (epoch-millis) beside it, the input
- * of the protocol mapper's freshness bound (amended 2026-09-11).
+ * of the protocol mapper's freshness bound.
  *
  * <p><b>Failure semantics (explicit, never blocks login, never invents data — the
- * lasting/temporary split, amended 2026-09-11)</b>: a <b>lasting</b> failure — a
+ * lasting/temporary split)</b>: a <b>lasting</b> failure — a
  * missing or unparsible stored broker token, Graph 400/401/403, an unconfigured or
  * invalid naming convention — membership is unverifiable and will not heal on retry, so the cached list is
  * <b>cleared to {@code []}</b> (+ ERROR log; a fresh empty list is still fresh — the
  * timestamp is written on every clear). A <b>temporary</b> failure — a network error,
  * Graph 5xx, 429 — <b>keeps the previous entitlement</b> (+ WARN log; the timestamp is
  * left untouched). Either way the validate-and-emit protocol mapper emits no claim from
- * an empty/absent cache, and the client's mandatory claim-verification detects the miss
+ * an empty/absent cache, and the consuming client's claim-verification detects the miss
  * downstream.
  */
 @Slf4j
@@ -57,7 +58,7 @@ public class ProjectEntitlementIdpMapper extends AbstractIdentityProviderMapper 
         this(new TokenExtractor(), new MsGraphProjectGroupsProvider());
     }
 
-    /** Collaborator injection for tests (the reviewer's constructor-injection suggestion). */
+    /** Collaborator injection for tests (constructor injection). */
     ProjectEntitlementIdpMapper(TokenExtractor tokenExtractor, MsGraphProjectGroupsProvider graphProvider) {
         this.tokenExtractor = tokenExtractor;
         this.graphProvider = graphProvider;
@@ -69,7 +70,8 @@ public class ProjectEntitlementIdpMapper extends AbstractIdentityProviderMapper 
     }
 
     /**
-     * IMPORT is excluded (the 2026-09-11 amendment): an effectively-IMPORT setup
+     * IMPORT is excluded (openspec: project-entitlement/fetch — Sync-mode
+     * declaration): an effectively-IMPORT setup
      * would freeze the cache after the first login, silently. Keycloak's own
      * brokered-login delegate warns at login for such setups; the protocol
      * mapper's sync guard is the enforcement — it refuses to mint from a frozen

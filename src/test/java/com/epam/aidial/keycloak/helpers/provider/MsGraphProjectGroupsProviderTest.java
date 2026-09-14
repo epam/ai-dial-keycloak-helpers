@@ -19,12 +19,14 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Graph-call hardening (amended 2026-09-11) — against a LOCAL test server, no
- * external calls: explicit read timeouts fire on a no-response endpoint; a
+ * Graph-call hardening (openspec: project-entitlement/fetch — Graph request
+ * timeouts / Bounded pagination / nextLink host restriction / Closed error
+ * streams) — against a stub endpoint served in-process, no external calls:
+ * explicit read timeouts fire on a no-response endpoint; a
  * pagination chain beyond the page cap fails as a temporary failure; a
  * {@code @odata.nextLink} pointing off the allowed host is refused, not
  * followed; an error response raises the typed exception with its status.
- * The provider under test is constructed with the local server as BOTH the API
+ * The provider under test is constructed with the stub server as BOTH the API
  * base and the allowed nextLink prefix — production constructs the Graph-only
  * default.
  */

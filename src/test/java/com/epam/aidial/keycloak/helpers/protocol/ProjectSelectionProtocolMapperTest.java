@@ -34,13 +34,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Request-carried selection contract (config-repo spec 02 §4, amended
- * 2026-09-10): the mint-side selection source is the REQUEST's {@code project}
+ * Request-carried selection contract (openspec: project-entitlement/selection-claim —
+ * Request-carried selection): the mint-side selection source is the REQUEST's {@code project}
  * form parameter — never IdP session state. No param → no claim, uniformly;
  * the mapper emits only when the request's selection ∈ the cached entitlement.
  *
- * <p>The fixture realm satisfies the mapper's premise guards (amended
- * 2026-09-11): the entitlement attribute is declared admin-only in the User
+ * <p>The fixture realm satisfies the mapper's premise guards (openspec:
+ * project-entitlement/selection-claim — Attribute-premise guard / Sync guard):
+ * the entitlement attribute is declared admin-only in the User
  * Profile, and the realm holds a healthy entitlement fetch-mapper feeder —
  * the dedicated guard cases override one premise at a time.
  */
@@ -190,8 +191,8 @@ public class ProjectSelectionProtocolMapperTest {
     public void absentRequestParamEmitsNothing() {
         AccessToken token = new AccessToken();
 
-        // No param → no claim, uniformly (no fallback, no session state — the
-        // 2026-09-10 ruling; a param-less client's tokens stay baseline).
+        // No param → no claim, uniformly (no fallback, no session state; a
+        // param-less client's tokens stay baseline).
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
                 sessionWithFormParam("project", null), mock(ClientSessionContext.class));
 
@@ -416,7 +417,7 @@ public class ProjectSelectionProtocolMapperTest {
         AccessToken token = new AccessToken();
 
         // Fail closed: with the bound enabled, a cache without a fetch timestamp
-        // (e.g. written by a pre-amendment build) is treated as absent.
+        // (e.g. written by an older build) is treated as absent.
         mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, null),
                 sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
 
