@@ -125,10 +125,12 @@ On the next login via Microsoft into your realm, Keycloak will:
 2. Cache relevant user attributes.
 3. Inject selected attributes into the tokens according to your mapper configuration.
 
-## Project entitlement mappers (D-019)
+## Project entitlement mappers
 
-The extension also ships a **matched pair** of mappers for the D-019
-project-entitlement flow — the two must be configured **together**:
+The extension also ships a **matched pair** of mappers for the
+project-entitlement flow — the normative specification lives under
+[`openspec/specs/project-entitlement/`](openspec/specs/project-entitlement/).
+The two must be configured **together**:
 
 - **`Entra Project Entitlement`** (IdP mapper, under *Identity Providers → \<your IdP\> → Mappers*)
   fetches the user's project groups from Microsoft Graph (with the user's own delegated
@@ -164,7 +166,7 @@ project-entitlement flow — the two must be configured **together**:
 
 Fetch failures never block login: lasting ones (Graph 400/401/403, a missing stored
 broker token, an unconfigured or invalid convention) clear the cached entitlement; temporary ones
-(network errors, 5xx, 429) keep it until the next login.
+(network errors, 5xx, 429, a pagination chain beyond the page cap) keep it until the next login.
 
 **Consumers should verify the token locally**: the claim travels only in the access
 token (never the ID token or UserInfo), so downstream services — AI DIAL Core included —
