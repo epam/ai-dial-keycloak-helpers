@@ -20,6 +20,7 @@ jobs:
 
     permissions:
       contents: write
+      packages: write
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -43,7 +44,7 @@ jobs:
         env:
           TAG: ${{ env.TAG }}
           GPR_USERNAME: ${{ github.actor }}
-          GPR_PASSWORD: ${{ secrets.PAT_TOKEN }}
+          GPR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Github Release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
