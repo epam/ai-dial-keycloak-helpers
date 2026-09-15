@@ -1,1 +1,2 @@
 com.epam.aidial.keycloak.helpers.idp.MicrosoftUserAttributesIdpMapper
+com.epam.aidial.keycloak.helpers.idp.ProjectEntitlementIdpMapper

@@ -18,10 +18,10 @@ dependencies {
         implementation("com.google.protobuf:protobuf-java:3.25.5") {
             because "CVE-2024-7254 - StackOverflow vulnerability"
         }
-        implementation("io.netty:netty-codec-http:4.1.132.Final") {
+        implementation("io.netty:netty-codec-http:4.1.137.Final") {
             because "CVE-2026-33870 - Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding"
         }
-        implementation("io.netty:netty-codec-http2:4.1.132.Final") {
+        implementation("io.netty:netty-codec-http2:4.1.137.Final") {
             because "CVE-2026-33871 - Denial of Service via HTTP/2 CONTINUATION frame flood"
         }
         checkstyle("org.codehaus.plexus:plexus-utils:3.6.1") {
@@ -35,6 +35,23 @@ dependencies {
     compileOnly "org.keycloak:keycloak-services:${keycloakVersion}"
 
     implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+
+    // Netty version floor for the whole graph (transitive via grpc-netty) — the Trivy
+    // CRITICAL/HIGH gate fails the build on the CVE set fixed in 4.1.137.Final.
+    implementation platform("io.netty:netty-bom:4.1.137.Final")
+    constraints {
+        implementation "io.netty:netty-buffer:4.1.137.Final"
+        implementation "io.netty:netty-codec:4.1.137.Final"
+        implementation "io.netty:netty-codec-dns:4.1.137.Final"
+        implementation "io.netty:netty-codec-haproxy:4.1.137.Final"
+        implementation "io.netty:netty-codec-http:4.1.137.Final"
+        implementation "io.netty:netty-codec-http2:4.1.137.Final"
+        implementation "io.netty:netty-codec-socks:4.1.137.Final"
+        implementation "io.netty:netty-common:4.1.137.Final"
+        implementation "io.netty:netty-handler:4.1.137.Final"
+        implementation "io.netty:netty-handler-proxy:4.1.137.Final"
+        implementation "io.netty:netty-resolver-dns:4.1.137.Final"
+    }
 
     compileOnly "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
