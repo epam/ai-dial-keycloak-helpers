@@ -563,10 +563,9 @@ public class ProjectSelectionProtocolMapperTest {
     public void emptyRequestParamEmitsFullEntitlementList() {
         AccessToken token = new AccessToken();
 
-        // The list mint: a present-but-empty selection emits the full cached
-        // entitlement as the list claim — a real Java list (Keycloak serializes
-        // it to a real JSON array, never a JSON-encoded string) — and no
-        // singular claim on this mint.
+        // The list mint: the parsed entitlement goes into other-claims as a
+        // real Java list — Keycloak serializes it to a real JSON array, never
+        // a JSON-encoded string — and no singular claim on this mint.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
                 sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
 
@@ -622,8 +621,6 @@ public class ProjectSelectionProtocolMapperTest {
     public void genuinelyEmptyEntitlementEmitsEmptyList() {
         AccessToken token = new AccessToken();
 
-        // A verified negative: the cache is usable and parses to an empty list —
-        // the list claim is an empty array.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement("[]"),
                 sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
 
@@ -637,9 +634,8 @@ public class ProjectSelectionProtocolMapperTest {
     public void emptyParamWithNoCachedEntitlementEmitsNothing() {
         AccessToken token = new AccessToken();
 
-        // Guard parity: no cached entitlement → no claim at all — no list claim
-        // and no fabricated empty array (an empty array asserts VERIFIED
-        // emptiness; an unreadable cache verifies nothing).
+        // Guard parity: no fabricated empty array — an empty array asserts
+        // VERIFIED emptiness; an unreadable cache verifies nothing.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(null),
                 sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
 
@@ -690,6 +686,21 @@ public class ProjectSelectionProtocolMapperTest {
 
         assertFalse(token.getOtherClaims().containsKey("user-projects"));
         assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void nonStringArrayEntitlementFailsClosed() {
+        for (String cached : new String[] {"null", "[null]", "[1]", "[\"abc-42\", 2]", "{}"}) {
+            for (String param : new String[] {"", "abc-42"}) {
+                AccessToken token = new AccessToken();
+
+                mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(cached),
+                        sessionWithFormParam("project", param), mock(ClientSessionContext.class));
+
+                assertFalse(cached + " / '" + param + "'", token.getOtherClaims().containsKey("user-projects"));
+                assertFalse(cached + " / '" + param + "'", token.getOtherClaims().containsKey("project"));
+            }
+        }
     }
 
     // ---- guard parity of the list mint: every premise guard governs it too ----
@@ -781,9 +792,8 @@ public class ProjectSelectionProtocolMapperTest {
     public void absentParamEmitsNoListClaim() {
         AccessToken token = new AccessToken();
 
-        // No always-on emission: the list claim exists only on the
-        // present-but-empty mint — an absent param emits nothing even with a
-        // usable cached entitlement (baseline tokens stay minimal).
+        // No always-on emission: a usable cache must not turn the absent param
+        // into a list claim — baseline tokens stay minimal.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
                 sessionWithFormParam("project", null), mock(ClientSessionContext.class));
 
@@ -808,8 +818,7 @@ public class ProjectSelectionProtocolMapperTest {
     public void unentitledSelectionEmitsNoListClaim() {
         AccessToken token = new AccessToken();
 
-        // Regression: the singular silent drop stays a singular drop — no list
-        // claim rides along on an unentitled non-empty selection.
+        // The singular drop stays a singular drop — no list claim rides along.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
                 sessionWithFormParam("project", "NOT-MINE"), mock(ClientSessionContext.class));
 
@@ -821,9 +830,8 @@ public class ProjectSelectionProtocolMapperTest {
     public void whitespaceOnlySelectionIsSilentSingularDrop() {
         AccessToken token = new AccessToken();
 
-        // A whitespace-only value is a non-empty selection: it simply never
-        // matches the entitlement (membership comparison, silent drop) — the
-        // list mint is the exact-empty parameter only.
+        // A whitespace-only value is a non-empty selection — the list mint is
+        // the exact-empty parameter only.
         mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
                 sessionWithFormParam("project", " "), mock(ClientSessionContext.class));
 

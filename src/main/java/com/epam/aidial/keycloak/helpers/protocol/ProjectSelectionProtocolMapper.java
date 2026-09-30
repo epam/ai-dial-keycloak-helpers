@@ -2,7 +2,8 @@ package com.epam.aidial.keycloak.helpers.protocol;
 
 import com.epam.aidial.keycloak.helpers.config.ProjectEntitlementConfiguration;
 import com.epam.aidial.keycloak.helpers.idp.ProjectEntitlementIdpMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.core.MultivaluedMap;
 import lombok.extern.slf4j.Slf4j;
@@ -168,9 +169,8 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
         String selection = requestFormParam(keycloakSession, config.getSelectionParam());
 
         // Absent param → no claim, uniformly (openspec: project-entitlement/
-        // selection-claim — No always-on list emission): regardless of the cached
-        // entitlement, neither claim shape. This stays BEFORE the entitlement
-        // read/parse — an absent-param mint logs nothing about the cache.
+        // selection-claim — No always-on list emission). Stays BEFORE the
+        // entitlement read/parse — an absent-param mint logs nothing about the cache.
         if (selection == null) {
             return;
         }
@@ -189,23 +189,19 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
             return;
         }
 
-        List<String> entitlement;
-        try {
-            entitlement = objectMapper.readValue(entitlementJson, new TypeReference<List<String>>() { });
-        } catch (Exception e) {
+        List<String> entitlement = parseEntitlement(entitlementJson);
+        if (entitlement == null) {
             log.warn("Cached project entitlement is malformed — emitting no claim (fail closed)");
             return;
         }
 
-        // The two mint shapes branch here — at emission, on fully parsed
-        // entitlement data, behind the shared guards. The branch is exclusive:
-        // no mint emits both claim shapes.
+        // The branch is exclusive: no mint emits both claim shapes.
         if (selection.isEmpty()) {
             // Present-but-empty selection → the list mint (openspec:
             // project-entitlement/selection-claim — Empty-selection list
-            // emission): the parsed entitlement list itself, so Keycloak's
-            // serialization produces a real JSON array (never a JSON-encoded
-            // string), and no singular claim on this mint.
+            // emission): the parsed list, not a JSON-encoded string, so
+            // Keycloak's serialization yields a real JSON array — and no
+            // singular claim on this mint.
             token.getOtherClaims().put(config.getListClaimName(), entitlement);
             log.debug("Emitted project list claim for the request's empty selection (full entitlement)");
             return;
@@ -217,6 +213,27 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
         } else {
             log.debug("Selection not within the user's entitlement — no claim emitted (silent drop)");
         }
+    }
+
+    /** The cached entitlement as a list of project ids, or {@code null} unless it is a JSON array of strings. */
+    private List<String> parseEntitlement(String json) {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(json);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+        if (root == null || !root.isArray()) {
+            return null;
+        }
+        List<String> values = new ArrayList<>(root.size());
+        for (JsonNode element : root) {
+            if (!element.isTextual()) {
+                return null;
+            }
+            values.add(element.textValue());
+        }
+        return values;
     }
 
     /**
