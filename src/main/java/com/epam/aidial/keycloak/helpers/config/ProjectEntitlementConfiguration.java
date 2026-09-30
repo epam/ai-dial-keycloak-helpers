@@ -25,6 +25,7 @@ public class ProjectEntitlementConfiguration {
     String conventionPrefix;
     String selectionParam;
     String claimName;
+    String listClaimName;
     String entitlementAttribute;
     long entitlementMaxAgeMinutes;
     int graphConnectTimeoutMillis;
@@ -34,6 +35,7 @@ public class ProjectEntitlementConfiguration {
     private static final String CONVENTION_PREFIX = "convention.prefix";
     public static final String SELECTION_PARAM = "selection.param";
     private static final String CLAIM_NAME = "claim.name";
+    private static final String LIST_CLAIM_NAME = "list.claim.name";
     private static final String ENTITLEMENT_ATTRIBUTE = "entitlement.attribute";
     public static final String ENTITLEMENT_MAX_AGE = "entitlement.max-age";
     private static final String DEFAULT_ENTITLEMENT_MAX_AGE = "0";
@@ -49,6 +51,7 @@ public class ProjectEntitlementConfiguration {
 
     private static final String DEFAULT_SELECTION_PARAM = "project";
     private static final String DEFAULT_CLAIM_NAME = "project";
+    private static final String DEFAULT_LIST_CLAIM_NAME = "user-projects";
     private static final String DEFAULT_ENTITLEMENT_ATTRIBUTE = "projectEntitlement";
 
     /** Defaults mirror {@link com.epam.aidial.keycloak.helpers.provider.MsGraphProjectGroupsProvider}. */
@@ -81,6 +84,7 @@ public class ProjectEntitlementConfiguration {
                 config.get(CONVENTION_PREFIX),
                 config.getOrDefault(SELECTION_PARAM, DEFAULT_SELECTION_PARAM),
                 config.getOrDefault(CLAIM_NAME, DEFAULT_CLAIM_NAME),
+                config.getOrDefault(LIST_CLAIM_NAME, DEFAULT_LIST_CLAIM_NAME),
                 config.getOrDefault(ENTITLEMENT_ATTRIBUTE, DEFAULT_ENTITLEMENT_ATTRIBUTE),
                 parseMaxAgeMinutes(config.get(ENTITLEMENT_MAX_AGE)),
                 parseTimeoutMillis(GRAPH_CONNECT_TIMEOUT, config.get(GRAPH_CONNECT_TIMEOUT), DEFAULT_GRAPH_CONNECT_TIMEOUT),
@@ -159,7 +163,10 @@ public class ProjectEntitlementConfiguration {
         properties.add(textProperty(SELECTION_PARAM, "Selection Parameter",
                 "Request parameter carrying the session's project selection (authorize URL + the exchange/refresh POST form bodies)", DEFAULT_SELECTION_PARAM));
         properties.add(textProperty(CLAIM_NAME, "Claim Name",
-                "Name of the singular claim emitted on entitlement", DEFAULT_CLAIM_NAME));
+                "Name of the singular claim emitted on entitlement (protocol mapper)", DEFAULT_CLAIM_NAME));
+        properties.add(textProperty(LIST_CLAIM_NAME, "List Claim Name",
+                "Name of the list claim emitted on a present-but-empty selection — the full cached entitlement "
+                        + "as a JSON array (protocol mapper)", DEFAULT_LIST_CLAIM_NAME));
         properties.add(textProperty(ENTITLEMENT_ATTRIBUTE, "Entitlement Attribute",
                 "User attribute key the fetched entitlement is cached under", DEFAULT_ENTITLEMENT_ATTRIBUTE));
         properties.add(textProperty(ENTITLEMENT_MAX_AGE, "Entitlement Max Age (minutes)",
