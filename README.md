@@ -138,7 +138,11 @@ The two must be configured **together**:
   `projectEntitlement` attribute (plus the `projectEntitlementAt` fetch timestamp).
 - **`Project Selection (OIDC Claim)`** (protocol mapper, under *Client Scopes / Clients → Mappers*)
   emits the singular `project` claim at every token mint when the request's `project`
-  parameter is within the cached entitlement — silently emitting nothing otherwise.
+  parameter is within the cached entitlement — silently emitting nothing otherwise. When
+  the request's `project` parameter is present but **empty**, the same mapper instead
+  emits the full cached entitlement as the `user-projects` claim (the
+  `list.claim.name` config, default `user-projects`) — a real JSON array of project
+  ids — and no singular claim on that mint.
 
 **Requirements for the pair to work (all fail closed with an ERROR log when violated):**
 
@@ -173,6 +177,17 @@ token (never the ID token or UserInfo), so downstream services — AI DIAL Core 
 should be configured with the realm's `jwksUrl` and read the `project` claim from the
 locally signature-verified JWT, rather than relying on any introspection or userinfo
 round-trip.
+
+**About the `user-projects` list claim**: the list claim exists only on a mint whose
+`project` parameter is present but empty — baseline tokens (an absent or non-empty
+parameter) carry no list claim, so its absence is normal and carries no meaning. When
+the claim is present it is a real JSON array of project ids (never a JSON-encoded
+string). Consumers distinguish two negative readings: a **missing or malformed** list
+claim means the IdP does not provide the list — degrade to manual type selection; an
+**empty array** is a verified empty entitlement — a valid empty list, not a missing
+one. The same premise guards (sync mode, attribute declaration, freshness) govern the
+list claim exactly as the singular one: an absent, stale, or malformed cache mints no
+list claim at all — never a fabricated empty array.
 
 ## Development
 

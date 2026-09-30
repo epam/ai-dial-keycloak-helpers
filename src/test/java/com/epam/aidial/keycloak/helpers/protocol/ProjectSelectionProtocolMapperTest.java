@@ -36,8 +36,10 @@ import static org.mockito.Mockito.when;
 /**
  * Request-carried selection contract (openspec: project-entitlement/selection-claim —
  * Request-carried selection): the mint-side selection source is the REQUEST's {@code project}
- * form parameter — never IdP session state. No param → no claim, uniformly;
- * the mapper emits only when the request's selection ∈ the cached entitlement.
+ * form parameter — never IdP session state. The parameter's presence distinguishes the
+ * two mint shapes: no param → no claim, uniformly; a present-but-empty param is the list
+ * mint (the full cached entitlement as the {@code user-projects} list claim); a non-empty
+ * selection emits the singular claim only when it ∈ the cached entitlement.
  *
  * <p>The fixture realm satisfies the mapper's premise guards (openspec:
  * project-entitlement/selection-claim — Attribute-premise guard / Sync guard):
@@ -553,5 +555,279 @@ public class ProjectSelectionProtocolMapperTest {
                 mock(ClientSessionContext.class));
 
         assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    // ---- the list mint: a present-but-empty selection parameter ----
+
+    @Test
+    public void emptyRequestParamEmitsFullEntitlementList() {
+        AccessToken token = new AccessToken();
+
+        // The list mint: a present-but-empty selection emits the full cached
+        // entitlement as the list claim — a real Java list (Keycloak serializes
+        // it to a real JSON array, never a JSON-encoded string) — and no
+        // singular claim on this mint.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        Object claim = token.getOtherClaims().get("user-projects");
+        assertTrue(claim instanceof List);
+        List<?> list = (List<?>) claim;
+        assertEquals(2, list.size());
+        assertTrue(list.contains("abc-42"));
+        assertTrue(list.contains("xyz-9"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void listClaimNameKnobIsHonored() {
+        AccessToken token = new AccessToken();
+        ProtocolMapperModel model = mappingModel();
+        model.getConfig().put("list.claim.name", "my-projects");
+        model.getConfig().put("claim.name", "my-project");
+
+        // The empty branch never touches claim.name — regardless of its
+        // customization, the list mint puts only the list claim.
+        mapper.setClaim(token, model, userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        assertTrue(token.getOtherClaims().get("my-projects") instanceof List);
+        assertFalse(token.getOtherClaims().containsKey("my-project"));
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void sameClaimNameAndListClaimNameStayExclusive() {
+        AccessToken token = new AccessToken();
+        ProtocolMapperModel model = mappingModel();
+        model.getConfig().put("list.claim.name", "project");
+        model.getConfig().put("claim.name", "project");
+
+        // The same-name misconfiguration is safe by construction: the branches
+        // are exclusive — one put per mint, so one claim shape per mint.
+        mapper.setClaim(token, model, userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+        assertTrue(token.getOtherClaims().get("project") instanceof List);
+        assertEquals(2, ((List<?>) token.getOtherClaims().get("project")).size());
+
+        AccessToken singularToken = new AccessToken();
+        mapper.setClaim(singularToken, model, userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
+        assertEquals("abc-42", singularToken.getOtherClaims().get("project"));
+        assertFalse(singularToken.getOtherClaims().get("project") instanceof List);
+    }
+
+    @Test
+    public void genuinelyEmptyEntitlementEmitsEmptyList() {
+        AccessToken token = new AccessToken();
+
+        // A verified negative: the cache is usable and parses to an empty list —
+        // the list claim is an empty array.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement("[]"),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        Object claim = token.getOtherClaims().get("user-projects");
+        assertTrue(claim instanceof List);
+        assertEquals(0, ((List<?>) claim).size());
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void emptyParamWithNoCachedEntitlementEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        // Guard parity: no cached entitlement → no claim at all — no list claim
+        // and no fabricated empty array (an empty array asserts VERIFIED
+        // emptiness; an unreadable cache verifies nothing).
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(null),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void emptyParamWithStaleCacheEmitsNothing() {
+        AccessToken token = new AccessToken();
+        String stale = Long.toString(System.currentTimeMillis() - 10 * 60_000L); // 10 min old, bound 5
+
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, stale),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void emptyParamWithMissingTimestampEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, null),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void emptyParamWithUnparsableTimestampEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModelWithMaxAge("5"), userSessionWith(ENTITLED, "not-a-number"),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void emptyParamWithMalformedEntitlementEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement("not-json"),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    // ---- guard parity of the list mint: every premise guard governs it too ----
+
+    @Test
+    public void emptyParamWithUndeclaredAttributeEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam(""), new UPConfig()), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void emptyParamWithUserEditableAttributeEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        UPConfig userEditable = new UPConfig();
+        userEditable.addOrReplaceAttribute(new UPAttribute(ENTITLEMENT_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("user", "admin"))));
+        userEditable.addOrReplaceAttribute(new UPAttribute(TIMESTAMP_ATTRIBUTE,
+                new UPAttributePermissions(Set.of(), Set.of("admin"))));
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam(""), userEditable), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void emptyParamWithZeroFeedersEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam(""), adminOnlyProfile(),
+                        List.of(), Map.of()),
+                mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void emptyParamWithImportFeederEmitsNothing() {
+        AccessToken token = new AccessToken();
+
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWith(selectionParam(""), adminOnlyProfile(),
+                        List.of(feederAt(IdentityProviderMapperSyncMode.IMPORT)),
+                        Map.of("entra", idpAt(IdentityProviderSyncMode.FORCE))),
+                mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void sharedPropertyListPinsTheListClaimNameKnob() {
+        // Tripwire for the shared property list: the list.claim.name knob must
+        // exist with its documented default (user-projects) — a refactor that
+        // drops or renames the knob would silently break the list-mint contract.
+        org.keycloak.provider.ProviderConfigProperty knob =
+                com.epam.aidial.keycloak.helpers.config.ProjectEntitlementConfiguration.getConfigProperties()
+                        .stream()
+                        .filter(property -> "list.claim.name".equals(property.getName()))
+                        .findFirst().orElse(null);
+
+        assertTrue(knob != null);
+        assertEquals("user-projects", knob.getDefaultValue());
+    }
+
+    // ---- transport and the no-always-on rule for the list claim ----
+
+    @Test
+    public void idTokenNeverReceivesTheListClaim() {
+        IDToken idToken = new IDToken();
+
+        mapper.setClaim(idToken, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", ""), mock(ClientSessionContext.class));
+
+        assertFalse(idToken.getOtherClaims().containsKey("user-projects"));
+        assertFalse(idToken.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void absentParamEmitsNoListClaim() {
+        AccessToken token = new AccessToken();
+
+        // No always-on emission: the list claim exists only on the
+        // present-but-empty mint — an absent param emits nothing even with a
+        // usable cached entitlement (baseline tokens stay minimal).
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", null), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+        assertFalse(token.getOtherClaims().containsKey("project"));
+    }
+
+    @Test
+    public void entitledSelectionEmitsNoListClaim() {
+        AccessToken token = new AccessToken();
+
+        // The exclusive branch: a non-empty selection mints the singular claim
+        // (and only it) — never both shapes on one mint.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", "abc-42"), mock(ClientSessionContext.class));
+
+        assertEquals("abc-42", token.getOtherClaims().get("project"));
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+    }
+
+    @Test
+    public void unentitledSelectionEmitsNoListClaim() {
+        AccessToken token = new AccessToken();
+
+        // Regression: the singular silent drop stays a singular drop — no list
+        // claim rides along on an unentitled non-empty selection.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", "NOT-MINE"), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
+    }
+
+    @Test
+    public void whitespaceOnlySelectionIsSilentSingularDrop() {
+        AccessToken token = new AccessToken();
+
+        // A whitespace-only value is a non-empty selection: it simply never
+        // matches the entitlement (membership comparison, silent drop) — the
+        // list mint is the exact-empty parameter only.
+        mapper.setClaim(token, mappingModel(), userSessionWithEntitlement(ENTITLED),
+                sessionWithFormParam("project", " "), mock(ClientSessionContext.class));
+
+        assertFalse(token.getOtherClaims().containsKey("project"));
+        assertFalse(token.getOtherClaims().containsKey("user-projects"));
     }
 }

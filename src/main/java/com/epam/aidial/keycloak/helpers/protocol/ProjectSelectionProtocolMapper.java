@@ -39,12 +39,32 @@ import java.util.Set;
  * at <b>every token mint</b> reads the selection from <b>the request itself</b> —
  * the {@code project} form parameter of the exchange/refresh POST this mint
  * belongs to (untrusted client input) — and the user's cached entitlement
- * (server data fetched by the entitlement IdP mapper).
+ * (server data fetched by the entitlement IdP mapper). The parameter's
+ * presence distinguishes the two mint shapes:
  *
- * <p><b>selection ∈ entitlement → emit {@code project: "<selection>"}</b> as a plain
- * JSON string (access token only); <b>else → emit nothing</b> — HTTP 200, well-formed
- * token, no error surface. The drop is silent by design, so a consuming client
- * must verify the claim's presence itself.
+ * <p><b>non-empty selection</b>: selection ∈ entitlement → emit
+ * {@code project: "<selection>"} as a plain JSON string (access token only);
+ * else → emit nothing — HTTP 200, well-formed token, no error surface. The
+ * drop is silent by design, so a consuming client must verify the claim's
+ * presence itself.
+ *
+ * <p><b>present-but-empty selection</b> (openspec: project-entitlement/
+ * selection-claim — Empty-selection list emission): emit the
+ * {@code user-projects} list claim — the full cached entitlement as a real
+ * JSON array (the parsed list, not a JSON-encoded string) — and no singular
+ * claim. The branch is exclusive: no mint emits both shapes.
+ *
+ * <p><b>absent selection</b> (openspec: project-entitlement/selection-claim —
+ * No always-on list emission): no claim, uniformly, regardless of the cached
+ * entitlement — neither shape; baseline tokens stay minimal.
+ *
+ * <p>Every premise guard of the mint decision — the attribute-premise guard,
+ * the sync guard, and the freshness bound — governs the list emission exactly
+ * as it governs the singular emission (openspec: project-entitlement/
+ * selection-claim — Guard parity of the list emission): when the cached
+ * entitlement is absent, stale, or malformed, the list mint emits no claim
+ * at all — never a fabricated empty array. An empty array is an affirmative
+ * assertion of verified emptiness.
  *
  * <p>Validation is a set-membership comparison — the selection is never interpolated,
  * parsed, or executed (no injection surface). A malformed cached entitlement fails
@@ -86,8 +106,9 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
     public String getHelpText() {
         return "Emits the request's selected project (the 'project' form parameter of the exchange/refresh POST) "
                 + "as the singular 'project' claim when the selection is within the user's cached project "
-                + "entitlement; emits nothing otherwise, and when the request carries no selection "
-                + "(silent drop — no param → no claim, uniformly)";
+                + "entitlement; a present-but-empty selection emits the full cached entitlement as the "
+                + "'user-projects' list claim (a JSON array) instead; emits nothing otherwise, and when the "
+                + "request carries no selection (silent drop — no param → no claim, uniformly)";
     }
 
     @Override
@@ -146,8 +167,16 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
         // (service-account/offline mints) → no claim.
         String selection = requestFormParam(keycloakSession, config.getSelectionParam());
 
+        // Absent param → no claim, uniformly (openspec: project-entitlement/
+        // selection-claim — No always-on list emission): regardless of the cached
+        // entitlement, neither claim shape. This stays BEFORE the entitlement
+        // read/parse — an absent-param mint logs nothing about the cache.
+        if (selection == null) {
+            return;
+        }
+
         String entitlementJson = userSession.getUser().getFirstAttribute(config.getEntitlementAttribute());
-        if (selection == null || selection.isEmpty() || entitlementJson == null) {
+        if (entitlementJson == null) {
             return;
         }
 
@@ -165,6 +194,20 @@ public class ProjectSelectionProtocolMapper extends AbstractOIDCProtocolMapper
             entitlement = objectMapper.readValue(entitlementJson, new TypeReference<List<String>>() { });
         } catch (Exception e) {
             log.warn("Cached project entitlement is malformed — emitting no claim (fail closed)");
+            return;
+        }
+
+        // The two mint shapes branch here — at emission, on fully parsed
+        // entitlement data, behind the shared guards. The branch is exclusive:
+        // no mint emits both claim shapes.
+        if (selection.isEmpty()) {
+            // Present-but-empty selection → the list mint (openspec:
+            // project-entitlement/selection-claim — Empty-selection list
+            // emission): the parsed entitlement list itself, so Keycloak's
+            // serialization produces a real JSON array (never a JSON-encoded
+            // string), and no singular claim on this mint.
+            token.getOtherClaims().put(config.getListClaimName(), entitlement);
+            log.debug("Emitted project list claim for the request's empty selection (full entitlement)");
             return;
         }
 
